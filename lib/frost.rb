@@ -3,7 +3,7 @@
 require_relative "frost/version"
 require 'ecdsa/ext'
 
-module Frost
+module FROST
   class Error < StandardError; end
 
   autoload :SigningKey, "frost/signing_key"
