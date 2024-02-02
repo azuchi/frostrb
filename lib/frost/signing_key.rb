@@ -1,5 +1,3 @@
-require 'securerandom'
-
 module FROST
   # A signing key for a Schnorr signature on a FROST.
   class SigningKey
@@ -29,7 +27,7 @@ module FROST
     # @param [Integer] degree Degree of polynomial.
     # @return [FROST::Polynomial] A polynomial
     def gen_poly(degree)
-      Polynomial.from_secret(scalar, degree)
+      Polynomial.from_secret(scalar, degree, group)
     end
   end
 end
