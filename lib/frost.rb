@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "frost/version"
-require 'ecdsa/ext'
+require 'ecdsa'
 
 module FROST
   class Error < StandardError; end
