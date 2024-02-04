@@ -6,7 +6,8 @@ module FROST
     attr_reader :group
 
     # Generate polynomial.
-    # @param [Array] coefficients Coefficients of polynomial. High order coefficients are first and constant term are last.
+    # @param [Array] coefficients Coefficients of polynomial.
+    # The first is the constant term, followed by the coefficients in descending order of order.
     # @param [ECDSA::Group] group
     def initialize(coefficients, group)
       raise ArgumentError, "coefficients must be an Array." unless coefficients.is_a?(Array)
@@ -40,11 +41,10 @@ module FROST
       return SecretShare.new(identifier, coefficients.last) if identifier == 0
 
       # Calculate using Horner's method.
-      coeffs = coefficients.reverse
-      last = coeffs.last
-      (coeffs.length - 2).step(0, -1) do |i|
+      last = coefficients.last
+      (coefficients.length - 2).step(0, -1) do |i|
         tmp = last * identifier
-        last = (tmp + coeffs[i]) % group.order
+        last = (tmp + coefficients[i]) % group.order
       end
       SecretShare.new(identifier, last)
     end

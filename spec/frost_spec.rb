@@ -8,7 +8,7 @@ RSpec.describe FROST do
       # key generation
       secret_key = FROST::SigningKey.new(vectors['inputs']['group_secret_key'].hex, group)
       coefficients = vectors['inputs']['share_polynomial_coefficients'].map(&:hex)
-      polynomial = FROST::Polynomial.new(coefficients << secret_key.scalar, group)
+      polynomial = FROST::Polynomial.new(coefficients.prepend(secret_key.scalar), group)
       verifying_key = vectors['inputs']['verifying_key_key']
       participants = vectors['inputs']['participant_shares'].map do |p|
         id = p['identifier']
