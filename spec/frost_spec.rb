@@ -9,10 +9,24 @@ RSpec.describe FROST do
       secret_key = FROST::SigningKey.new(vectors['inputs']['group_secret_key'].hex, group)
       coefficients = vectors['inputs']['share_polynomial_coefficients'].map(&:hex)
       polynomial = FROST::Polynomial.new(coefficients.prepend(secret_key.scalar), group)
-      verifying_key = vectors['inputs']['verifying_key_key']
-      participants = vectors['inputs']['participant_shares'].map do |p|
+      share_map = vectors['inputs']['participant_shares'].map do |p|
         id = p['identifier']
-        expect(polynomial.gen_share(id).share).to eq(p['participant_share'].hex)
+        # Calculate participant share.
+        share = polynomial.gen_share(id)
+        expect(share.share).to eq(p['participant_share'].hex)
+        [id, share]
+      end.to_h
+
+      round_one_outputs = vectors['round_one_outputs']
+      round_one_outputs['outputs'].each do |o|
+        hiding_randomness = [o['hiding_nonce_randomness']].pack("H*")
+        hiding_nonce = FROST::Nonce.send(:gen_from_random_bytes,
+                                         share_map[o['identifier']].to_key, hiding_randomness)
+        expect(hiding_nonce.to_hex).to eq(o['hiding_nonce'])
+        binding_randomness = [o['binding_nonce_randomness']].pack('H*')
+        binding_nonce = FROST::Nonce.send(:gen_from_random_bytes,
+                                          share_map[o['identifier']].to_key, binding_randomness)
+        expect(binding_nonce.to_hex).to eq(o['binding_nonce'])
       end
     end
   end

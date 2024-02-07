@@ -37,8 +37,8 @@ module FROST
     def gen_share(identifier)
       raise ArgumentError, "identifiers must be Integer." unless identifier.is_a?(Integer)
 
-      return SecretShare.new(identifier, 0) if coefficients.empty?
-      return SecretShare.new(identifier, coefficients.last) if identifier == 0
+      return SecretShare.new(identifier, 0, group) if coefficients.empty?
+      return SecretShare.new(identifier, coefficients.last, group) if identifier == 0
 
       # Calculate using Horner's method.
       last = coefficients.last
@@ -46,7 +46,7 @@ module FROST
         tmp = last * identifier
         last = (tmp + coefficients[i]) % group.order
       end
-      SecretShare.new(identifier, last)
+      SecretShare.new(identifier, last, group)
     end
   end
 
