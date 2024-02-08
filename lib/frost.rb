@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "frost/version"
-require 'ecdsa'
+require 'ecdsa_ext'
 require 'securerandom'
 require 'digest'
 require 'h2c'

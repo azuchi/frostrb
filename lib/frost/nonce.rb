@@ -2,6 +2,7 @@ module FROST
   class Nonce
 
     attr_reader :value # nonce value
+    attr_reader :group # Group of elliptic curve
 
     # Generate nonce.
     # @return [FROST::Nonce]
@@ -41,5 +42,12 @@ module FROST
     def to_hex
       ECDSA::Format::IntegerOctetString.encode(value, 32).unpack1('H*')
     end
+
+    # Compute public key.
+    # @return [ECDSA::Point]
+    def to_point
+      group.generator * value
+    end
+
   end
 end
