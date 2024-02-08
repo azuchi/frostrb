@@ -30,7 +30,7 @@ Gem::Specification.new do |spec|
   spec.require_paths = ["lib"]
 
   # Uncomment to register a new dependency of your gem
-  spec.add_dependency "ecdsa_ext", "~> 0.5.0"
+  spec.add_dependency "ecdsa_ext", "~> 0.5.1"
   spec.add_dependency "h2c", "~> 0.2.1"
 
   # For more information and examples about making a new gem, check out our
