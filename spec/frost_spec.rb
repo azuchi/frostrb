@@ -69,6 +69,12 @@ RSpec.describe FROST do
       let(:vectors) { load_fixture("secp256k1/vectors.json") }
       it_behaves_like "Test Vector", "secp256k1"
     end
+
+    context "p256" do
+      let(:group) { ECDSA::Group::Secp256r1 }
+      let(:vectors) { load_fixture("p256/vectors.json") }
+      it_behaves_like "Test Vector", "p256"
+    end
   end
 
 end

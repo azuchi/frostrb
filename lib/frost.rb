@@ -25,7 +25,7 @@ module FROST
   # @return [String] The encoded identifier
   def encode_identifier(identifier, group)
     case group
-    when ECDSA::Group::Secp256k1
+    when ECDSA::Group::Secp256k1, ECDSA::Group::Secp256r1
       ECDSA::Format::IntegerOctetString.encode(identifier, 32)
     else
       raise RuntimeError, "group #{group} dose not supported."
