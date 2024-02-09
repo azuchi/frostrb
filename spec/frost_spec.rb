@@ -50,11 +50,16 @@ RSpec.describe FROST do
         expect(binding_factors[o['identifier']]).to eq(o['binding_factor'].hex)
       end
 
-      round_two_outputs['outputs'].each do |o|
+      sig_shares = round_two_outputs['outputs'].map do |o|
         identifier = o['identifier']
-        partial_sig = FROST.sign(share_map[identifier], group_pubkey, nonce_map[identifier], msg, commitment_list)
-        expect(partial_sig).to eq(o['sig_share'].hex)
+        sig_share = FROST.sign(share_map[identifier], group_pubkey, nonce_map[identifier], msg, commitment_list)
+        expect(sig_share).to eq(o['sig_share'].hex)
+        sig_share
       end
+
+      # Aggregation
+      sig = FROST.aggregate(commitment_list, msg, group_pubkey, sig_shares)
+      expect(sig.to_hex).to eq(vectors['final_output']['sig'])
     end
   end
 

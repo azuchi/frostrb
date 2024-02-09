@@ -9,6 +9,7 @@ require 'h2c'
 module FROST
   class Error < StandardError; end
 
+  autoload :Signature, "frost/signature"
   autoload :Commitments, "frost/commitments"
   autoload :Hash, "frost/hash"
   autoload :Nonce, "frost/nonce"
@@ -107,5 +108,24 @@ module FROST
     field = ECDSA::PrimeField.new(group_pubkey.group.order)
     field.mod(hiding_nonce.value +
                 field.mod(binding_nonce.value * binding_factor) + field.mod(lambda_i * secret_share.share * challenge))
+  end
+
+  # Aggregates the signature shares to produce a final signature that can be verified with the group public key.
+  # @param [Array] commitment_list A list of commitments issued by each participant.
+  # @param [String] msg The message to be signed.
+  # @param [ECDSA::Point] group_pubkey Public key corresponding to the group signing key.
+  # @param [Array] sig_shares A set of signature shares z_i, integer values.
+  # @return [FROST::Signature] Schnorr signature.
+  def aggregate(commitment_list, msg, group_pubkey, sig_shares)
+    raise ArgumentError, "msg must be String." unless msg.is_a?(String)
+    raise ArgumentError, "group_pubkey must be ECDSA::Point." unless group_pubkey.is_a?(ECDSA::Point)
+
+    binding_factors = compute_binding_factors(group_pubkey, commitment_list, msg)
+    group_commitment = compute_group_commitment(commitment_list, binding_factors)
+
+    field = group_pubkey.group.field
+    s = sig_shares.inject(0) { |sum, s| field.mod(sum + s) }
+
+    Signature.new(group_commitment, s)
   end
 end
