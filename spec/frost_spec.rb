@@ -22,31 +22,39 @@ RSpec.describe FROST do
 
       # Round 1: Generate nonce and commitment
       round_one_outputs = vectors['round_one_outputs']
+      nonce_map = {}
       commitment_list = round_one_outputs['outputs'].map do |o|
+        identifier = o['identifier']
         hiding_randomness = [o['hiding_nonce_randomness']].pack("H*")
         hiding_nonce = FROST::Nonce.send(:gen_from_random_bytes,
-                                         share_map[o['identifier']].to_key, hiding_randomness)
+                                         share_map[identifier].to_key, hiding_randomness)
         expect(hiding_nonce.to_hex).to eq(o['hiding_nonce'])
         hiding_commitment = hiding_nonce.to_point
         expect(hiding_commitment.to_hex).to eq(o['hiding_nonce_commitment'])
 
         binding_randomness = [o['binding_nonce_randomness']].pack('H*')
         binding_nonce = FROST::Nonce.send(:gen_from_random_bytes,
-                                          share_map[o['identifier']].to_key, binding_randomness)
+                                          share_map[identifier].to_key, binding_randomness)
         expect(binding_nonce.to_hex).to eq(o['binding_nonce'])
         binding_commitment = binding_nonce.to_point
         expect(binding_commitment.to_hex).to eq(o['binding_nonce_commitment'])
+        nonce_map[identifier] = [hiding_nonce, binding_nonce]
         FROST::Commitments.new(o['identifier'], hiding_commitment, binding_commitment)
       end
 
-      binding_factors = FROST.compute_binding_factors(group_pubkey, commitment_list, msg)
-      round_one_outputs['outputs'].each.with_index do |o, i|
-        expect(binding_factors[i]).to eq(o['binding_factor'].hex)
-      end
-
-      # Round 2:
+      # Round 2: each participant generates their signature share
       round_two_outputs = vectors['round_two_outputs']
 
+      binding_factors = FROST.compute_binding_factors(group_pubkey, commitment_list, msg)
+      round_one_outputs['outputs'].each do |o|
+        expect(binding_factors[o['identifier']]).to eq(o['binding_factor'].hex)
+      end
+
+      round_two_outputs['outputs'].each do |o|
+        identifier = o['identifier']
+        partial_sig = FROST.sign(share_map[identifier], group_pubkey, nonce_map[identifier], msg, commitment_list)
+        expect(partial_sig).to eq(o['sig_share'].hex)
+      end
     end
   end
 

@@ -48,6 +48,28 @@ module FROST
       end
       SecretShare.new(identifier, last, group)
     end
+
+    # Generates the lagrange coefficient for the i'th participant.
+    # @param [Array] x_coordinates The list of x-coordinates.
+    # @param [Integer] xi an x-coordinate contained in x_coordinates.
+    # @param [ECDSA::Group] group Elliptic curve group.
+    # @return [Integer] The lagrange coefficient.
+    def self.derive_interpolating_value(x_coordinates, xi, group)
+      raise ArgumentError, "xi is not included in x_coordinates." unless x_coordinates.include?(xi)
+      raise ArgumentError, "Duplicate values in x_coordinates." if (x_coordinates.length - x_coordinates.uniq.length) > 0
+      raise ArgumentError, "group must be ECDSA::Group." unless group.is_a?(ECDSA::Group)
+
+      field = ECDSA::PrimeField.new(group.order)
+      numerator = 1
+      denominator = 1
+      x_coordinates.each do |xj|
+        next if xi == xj
+        numerator *= xj
+        denominator *= (xj - xi)
+      end
+
+      field.mod(numerator * field.inverse(denominator))
+    end
   end
 
 end

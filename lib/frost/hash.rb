@@ -19,6 +19,14 @@ module FROST
     # @param [String] msg The message to be hashed.
     # @param [ECDSA::Group] group The elliptic curve group.
     # @return [Integer]
+    def h2(msg, group)
+      hash_to_field(msg, group, "chal")
+    end
+
+    # H3 hash function.
+    # @param [String] msg The message to be hashed.
+    # @param [ECDSA::Group] group The elliptic curve group.
+    # @return [Integer]
     def h3(msg, group)
       hash_to_field(msg, group, "nonce")
     end
