@@ -5,7 +5,7 @@ RSpec.describe FROST::SigningKey do
   describe "#new" do
     context 'valid key range' do
       it do
-        expect{described_class.generate}.not_to raise_error
+        expect{described_class.generate(ECDSA::Group::Secp256k1)}.not_to raise_error
       end
     end
     context 'invalid key range' do

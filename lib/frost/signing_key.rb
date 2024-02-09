@@ -18,7 +18,7 @@ module FROST
 
     # Generate signing key.
     # @param [ECDSA::Group] group Group of elliptic curve.
-    def self.generate(group = ECDSA::Group::Secp256k1)
+    def self.generate(group)
       scalar = 1 + SecureRandom.random_number(group.order - 1)
       SigningKey.new(scalar, group)
     end
