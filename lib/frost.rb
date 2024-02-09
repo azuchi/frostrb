@@ -129,6 +129,39 @@ module FROST
     Signature.new(group_commitment, s)
   end
 
+  # Verify signature share.
+  # @param [Integer] identifier Identifier i of the participant.
+  # @param [ECDSA::Point] pubkey_i The public key for the i-th participant
+  # @param [Integer] sig_share_i Integer value indicating the signature share as produced
+  # in round two from the i-th participant.
+  # @param [Array] commitment_list A list of commitments issued by each participant.
+  # @param [ECDSA::Point] group_pubkey Public key corresponding to the group signing key.
+  # @param [String] msg The message to be signed.
+  # @return [Boolean] Verification result.
+  def verify_share(identifier, pubkey_i, sig_share_i, commitment_list, group_pubkey, msg)
+    raise ArgumentError, "identifier must be Integer." unless identifier.is_a?(Integer)
+    raise ArgumentError, "sig_share_i must be Integer." unless sig_share_i.is_a?(Integer)
+    raise ArgumentError, "pubkey_i must be ECDSA::Point." unless pubkey_i.is_a?(ECDSA::Point)
+    raise ArgumentError, "group_pubkey must be ECDSA::Point." unless group_pubkey.is_a?(ECDSA::Point)
+
+    binding_factors = compute_binding_factors(group_pubkey, commitment_list, msg)
+    binding_factor = binding_factors[identifier]
+    group_commitment = compute_group_commitment(commitment_list, binding_factors)
+    comm_i = commitment_list.find{|c| c.identifier == identifier}
+    hiding_commitment = comm_i.hiding
+    binding_commitment = comm_i.binding
+    raise ArgumentError, "hiding_commitment must be ECDSA::Point." unless hiding_commitment.is_a?(ECDSA::Point)
+    raise ArgumentError, "binding_commitment must be ECDSA::Point." unless binding_commitment.is_a?(ECDSA::Point)
+
+    comm_share = hiding_commitment + binding_commitment * binding_factor
+    challenge = compute_challenge(group_commitment, group_pubkey, msg)
+    identifiers = commitment_list.map(&:identifier)
+    lambda_i = Polynomial.derive_interpolating_value(identifiers, identifier, group_pubkey.group)
+    l = group_pubkey.group.generator * sig_share_i
+    r = comm_share + pubkey_i * (challenge * lambda_i)
+    l == r
+  end
+
   # Verify signature.
   # @param [FROST::Signature] signature
   # @param [ECDSA::Point] public_key

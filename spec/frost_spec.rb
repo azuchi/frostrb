@@ -52,8 +52,14 @@ RSpec.describe FROST do
 
       sig_shares = round_two_outputs['outputs'].map do |o|
         identifier = o['identifier']
-        sig_share = FROST.sign(share_map[identifier], group_pubkey, nonce_map[identifier], msg, commitment_list)
+        signing_share = share_map[identifier]
+        sig_share = FROST.sign(signing_share, group_pubkey, nonce_map[identifier], msg, commitment_list)
         expect(sig_share).to eq(o['sig_share'].hex)
+        expect(FROST.verify_share(
+          identifier,
+          signing_share.to_point,
+          sig_share,
+          commitment_list, group_pubkey, msg)).to be true
         sig_share
       end
 
