@@ -7,8 +7,8 @@ module FROST
     # Generate nonce.
     # @return [FROST::Nonce]
     def initialize(nonce, group)
-      raise ArgumentError "group must by ECDSA::Group." unless group.is_a?(ECDSA::Group)
-      raise ArgumentError "nonce must by Integer." unless nonce.is_a?(Integer)
+      raise ArgumentError, "group must by ECDSA::Group." unless group.is_a?(ECDSA::Group)
+      raise ArgumentError, "nonce must by Integer." unless nonce.is_a?(Integer)
       @value = nonce
       @group = group
     end
@@ -16,8 +16,7 @@ module FROST
     # Generate nonce from secret share.
     # @param [FROST::SigningKey] secret
     def self.gen_from_secret(secret)
-      raise ArgumentError, "secret must be FROST::SigningKey" unless secret.is_a?(FROST::SigningKey)
-      Nonce.new(Nonce.gen_from_random_bytes(secret), secret.group)
+      gen_from_random_bytes(secret)
     end
 
     # Generates a nonce from the given random bytes.
@@ -27,6 +26,8 @@ module FROST
     # @param [String] random_bytes Random bytes.
     # @return [FROST::Nonce]
     def self.gen_from_random_bytes(secret, random_bytes = SecureRandom.bytes(32))
+      secret = secret.to_key if secret.is_a?(SecretShare)
+      raise ArgumentError, "secret must be FROST::SigningKey" unless secret.is_a?(FROST::SigningKey)
       raise ArgumentError, "random_bytes must be 32 bytes." unless random_bytes.bytesize == 32
 
       secret_bytes = ECDSA::Format::IntegerOctetString.encode(secret.scalar, 32)

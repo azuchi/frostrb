@@ -19,10 +19,11 @@ module FROST
     end
 
     # Generate random polynomial using secret as constant term.
-    # @param [Integer] secret Secret value as constant term.
+    # @param [Integer|FROST::SigningKey] secret Secret value as constant term.
     # @param [Integer] degree Degree of polynomial.
     # @return [FROST::Polynomial] Polynomial
     def self.from_secret(secret, degree, group)
+      secret = secret.scalar if secret.is_a?(FROST::SigningKey)
       raise ArgumentError, "secret must be Integer." unless secret.is_a?(Integer)
       raise ArgumentError, "degree must be Integer." unless degree.is_a?(Integer)
       raise ArgumentError, "degree must be greater than or equal to 1." if degree < 1

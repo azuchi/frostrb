@@ -27,14 +27,14 @@ RSpec.describe FROST do
         identifier = o['identifier']
         hiding_randomness = [o['hiding_nonce_randomness']].pack("H*")
         hiding_nonce = FROST::Nonce.send(:gen_from_random_bytes,
-                                         share_map[identifier].to_key, hiding_randomness)
+                                         share_map[identifier], hiding_randomness)
         expect(hiding_nonce.to_hex).to eq(o['hiding_nonce'])
         hiding_commitment = hiding_nonce.to_point
         expect(hiding_commitment.to_hex).to eq(o['hiding_nonce_commitment'])
 
         binding_randomness = [o['binding_nonce_randomness']].pack('H*')
         binding_nonce = FROST::Nonce.send(:gen_from_random_bytes,
-                                          share_map[identifier].to_key, binding_randomness)
+                                          share_map[identifier], binding_randomness)
         expect(binding_nonce.to_hex).to eq(o['binding_nonce'])
         binding_commitment = binding_nonce.to_point
         expect(binding_commitment.to_hex).to eq(o['binding_nonce_commitment'])
