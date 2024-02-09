@@ -128,4 +128,19 @@ module FROST
 
     Signature.new(group_commitment, s)
   end
+
+  # Verify signature.
+  # @param [FROST::Signature] signature
+  # @param [ECDSA::Point] public_key
+  # @param [String] msg
+  # @return [Boolean] Verification result.
+  def verify(signature, public_key, msg)
+    # Compute challenge
+    challenge = compute_challenge(signature.r, public_key, msg)
+
+    s_g = public_key.group.generator * signature.s
+    c_p = public_key * challenge
+    result = (s_g + signature.r.negate + c_p.negate) * public_key.group.cofactor
+    result.infinity?
+  end
 end

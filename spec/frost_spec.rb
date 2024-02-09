@@ -60,6 +60,8 @@ RSpec.describe FROST do
       # Aggregation
       sig = FROST.aggregate(commitment_list, msg, group_pubkey, sig_shares)
       expect(sig.to_hex).to eq(vectors['final_output']['sig'])
+
+      expect(FROST.verify(sig, group_pubkey, msg)).to be true
     end
   end
 
