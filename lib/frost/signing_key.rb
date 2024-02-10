@@ -29,5 +29,11 @@ module FROST
     def gen_poly(degree)
       Polynomial.from_secret(scalar, degree, group)
     end
+
+    # Compute public key.
+    # @return [ECDSA::Point]
+    def to_point
+      group.generator * scalar
+    end
   end
 end
