@@ -1,15 +1,20 @@
-# Frost
+# FROST (Flexible Round-Optimised Schnorr Threshold signatures) for Ruby [![Build Status](https://github.com/azuchi/frostrb/actions/workflows/main.yml/badge.svg?branch=master)](https://github.com/azuchi/frostrb/actions/workflows/main.yml)
 
-Welcome to your new gem! In this directory, you'll find the files you need to be able to package up your Ruby library into a gem. Put your Ruby code in the file `lib/frost`. To experiment with that code, run `bin/console` for an interactive prompt.
+This library is ruby implementations of ['Two-Round Threshold Schnorr Signatures with FROST'](https://datatracker.ietf.org/doc/draft-irtf-cfrg-frost/).
 
-TODO: Delete this and the text above, and describe your gem
+Note: This library has not been security audited and tested widely, so should not be used in production.
+
+The cipher suites currently supported by this library are:
+
+* [secp256k1, SHA-256](https://www.ietf.org/archive/id/draft-irtf-cfrg-frost-14.html#name-frostsecp256k1-sha-256)
+* [P-256, SHA-256](https://www.ietf.org/archive/id/draft-irtf-cfrg-frost-14.html#name-frostp-256-sha-256) 
 
 ## Installation
 
 Add this line to your application's Gemfile:
 
 ```ruby
-gem 'frost'
+gem 'frostrb', require: 'frost'
 ```
 
 And then execute:
@@ -18,26 +23,51 @@ And then execute:
 
 Or install it yourself as:
 
-    $ gem install frost
+    $ gem install frostrb
 
 ## Usage
 
-TODO: Write usage instructions here
+```ruby
+require 'frost'
 
-## Development
+group = ECDSA::Group::Secp256k1
 
-After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake spec` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
+# Dealer generate secret.
+secret = FROST::SigningKey.generate(group)
+group_pubkey = secret.to_point
 
-To install this gem onto your local machine, run `bundle exec rake install`. To release a new version, update the version number in `version.rb`, and then run `bundle exec rake release`, which will create a git tag for the version, push git commits and the created tag, and push the `.gem` file to [rubygems.org](https://rubygems.org).
+# Generate polynomial(f(x) = ax + b)
+polynomial = secret.gen_poly(1)
 
-## Contributing
+# Calculate secret shares.
+share1 = polynomial.gen_share(1)
+share2 = polynomial.gen_share(2)
+share3 = polynomial.gen_share(3)
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/[USERNAME]/frost. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [code of conduct](https://github.com/[USERNAME]/frost/blob/master/CODE_OF_CONDUCT.md).
+# Round 1: Generate nonce and commitment
+## each party generate hiding and binding nonce.
+hiding_nonce1 = FROST::Nonce.gen_from_secret(share1)
+binding_nonce1 = FROST::Nonce.gen_from_secret(share1)
+hiding_nonce3 = FROST::Nonce.gen_from_secret(share3)
+binding_nonce3 = FROST::Nonce.gen_from_secret(share3)
 
-## License
+comm1 = FROST::Commitments.new(1, hiding_nonce1.to_point, binding_nonce1.to_point)
+comm3 = FROST::Commitments.new(3, hiding_nonce3.to_point, binding_nonce3.to_point)
+commitment_list = [comm1, comm3]
 
-The gem is available as open source under the terms of the [MIT License](https://opensource.org/licenses/MIT).
+msg = ["74657374"].pack("H*")
 
-## Code of Conduct
+# Round 2: each participant generates their signature share(1 and 3)
+sig_share1 = FROST.sign(share1, group_pubkey, [hiding_nonce1, binding_nonce1], msg, commitment_list)
+sig_share3 = FROST.sign(share3, group_pubkey, [hiding_nonce3, binding_nonce3], msg, commitment_list)
 
-Everyone interacting in the Frost project's codebases, issue trackers, chat rooms and mailing lists is expected to follow the [code of conduct](https://github.com/[USERNAME]/frost/blob/master/CODE_OF_CONDUCT.md).
+# verify signature share
+FROST.verify_share(1, share1.to_point, sig_share1, commitment_list, group_pubkey, msg)
+FROST.verify_share(3, share3.to_point, sig_share3, commitment_list, group_pubkey, msg)
+
+# Aggregation
+sig = FROST.aggregate(commitment_list, msg, group_pubkey, [sig_share1, sig_share3])
+
+# verify final signature
+FROST.verify(sig, group_pubkey, msg)
+```
