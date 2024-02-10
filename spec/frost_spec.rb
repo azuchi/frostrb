@@ -71,17 +71,58 @@ RSpec.describe FROST do
     end
   end
 
+  shared_examples "frost process" do
+    it do
+      # Dealer generate secret.
+      secret = FROST::SigningKey.generate(group)
+      group_pubkey = secret.to_point
+      # Generate polynomial
+      polynomial = secret.gen_poly(1)
+      # Calculate secret shares.
+      share1 = polynomial.gen_share(1)
+      share2 = polynomial.gen_share(2)
+      share3 = polynomial.gen_share(3)
+
+      # Round 1: Generate nonce and commitment
+      ## each party generate hiding and binding nonce.
+      hiding_nonce1 = FROST::Nonce.gen_from_secret(share1)
+      binding_nonce1 = FROST::Nonce.gen_from_secret(share1)
+      hiding_nonce3 = FROST::Nonce.gen_from_secret(share3)
+      binding_nonce3 = FROST::Nonce.gen_from_secret(share3)
+
+      comm1 = FROST::Commitments.new(1, hiding_nonce1.to_point, binding_nonce1.to_point)
+      comm3 = FROST::Commitments.new(3, hiding_nonce3.to_point, binding_nonce3.to_point)
+      commitment_list = [comm1, comm3]
+
+      msg = ["74657374"].pack("H*")
+
+      # Round 2: each participant generates their signature share(1 and 3)
+      sig_share1 = FROST.sign(share1, group_pubkey, [hiding_nonce1, binding_nonce1], msg, commitment_list)
+      sig_share3 = FROST.sign(share3, group_pubkey, [hiding_nonce3, binding_nonce3], msg, commitment_list)
+
+      expect(FROST.verify_share(1, share1.to_point, sig_share1, commitment_list, group_pubkey, msg)).to be true
+      expect(FROST.verify_share(3, share3.to_point, sig_share3, commitment_list, group_pubkey, msg)).to be true
+
+      # Aggregation
+      sig = FROST.aggregate(commitment_list, msg, group_pubkey, [sig_share1, sig_share3])
+
+      expect(FROST.verify(sig, group_pubkey, msg)).to be true
+    end
+  end
+
   describe "Test Vector" do
     context "secp256k1" do
       let(:group) { ECDSA::Group::Secp256k1 }
       let(:vectors) { load_fixture("secp256k1/vectors.json") }
       it_behaves_like "Test Vector", "secp256k1"
+      it_behaves_like "frost process", "secp256k1"
     end
 
     context "p256" do
       let(:group) { ECDSA::Group::Secp256r1 }
       let(:vectors) { load_fixture("p256/vectors.json") }
       it_behaves_like "Test Vector", "p256"
+      it_behaves_like "frost process", "p256"
     end
   end
 
