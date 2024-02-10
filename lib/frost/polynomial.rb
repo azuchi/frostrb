@@ -27,9 +27,8 @@ module FROST
       raise ArgumentError, "secret must be Integer." unless secret.is_a?(Integer)
       raise ArgumentError, "degree must be Integer." unless degree.is_a?(Integer)
       raise ArgumentError, "degree must be greater than or equal to 1." if degree < 1
-
       coeffs = degree.times.map {SecureRandom.random_number(group.order - 1)}
-      Polynomial.new(coeffs << secret, group)
+      Polynomial.new(coeffs.prepend(secret), group)
     end
 
     # Generate secret share.
