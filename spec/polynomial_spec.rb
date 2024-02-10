@@ -9,7 +9,7 @@ RSpec.describe FROST::Polynomial do
     it do
       poly = described_class.from_secret(secret, 3, group)
       expect(poly.coefficients.length).to eq(4)
-      expect(poly.coefficients.last).to eq(secret)
+      expect(poly.coefficients.first).to eq(secret)
     end
 
     context "invalid degree" do
