@@ -123,10 +123,13 @@ module FROST
     binding_factors = compute_binding_factors(group_pubkey, commitment_list, msg)
     group_commitment = compute_group_commitment(commitment_list, binding_factors)
 
-    field = group_pubkey.group.field
-    s = sig_shares.inject(0) { |sum, s| field.mod(sum + s) }
+    field = ECDSA::PrimeField.new(group_pubkey.group.order)
+    s = sig_shares.inject(0) do |sum, z_i|
+      raise ArgumentError, "sig_shares must be array of integer" unless z_i.is_a?(Integer)
+      field.mod(sum + z_i)
+    end
 
-    Signature.new(group_commitment, s)
+    Signature.new(group_commitment, field.mod(s))
   end
 
   # Verify signature share.
@@ -168,6 +171,10 @@ module FROST
   # @param [String] msg
   # @return [Boolean] Verification result.
   def verify(signature, public_key, msg)
+    raise ArgumentError, "signature must be FROST::Signature" unless signature.is_a?(FROST::Signature)
+    raise ArgumentError, "public_key must be ECDSA::Point" unless public_key.is_a?(ECDSA::Point)
+    raise ArgumentError, "msg must be String." unless msg.is_a?(String)
+
     # Compute challenge
     challenge = compute_challenge(signature.r, public_key, msg)
 
