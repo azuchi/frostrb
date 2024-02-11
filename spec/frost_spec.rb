@@ -118,11 +118,23 @@ RSpec.describe FROST do
       it_behaves_like "frost process", "secp256k1"
     end
 
+    context "secp256k1 big identifiers" do
+      let(:group) { ECDSA::Group::Secp256k1 }
+      let(:vectors) { load_fixture("secp256k1/vectors-big-identifier.json") }
+      it_behaves_like "Test Vector", "secp256k1 with big identifier"
+    end
+
     context "p256" do
       let(:group) { ECDSA::Group::Secp256r1 }
       let(:vectors) { load_fixture("p256/vectors.json") }
       it_behaves_like "Test Vector", "p256"
       it_behaves_like "frost process", "p256"
+    end
+
+    context "p256 big identifiers" do
+      let(:group) { ECDSA::Group::Secp256r1 }
+      let(:vectors) { load_fixture("p256/vectors-big-identifier.json") }
+      it_behaves_like "Test Vector", "p256 with big identifier"
     end
   end
 
