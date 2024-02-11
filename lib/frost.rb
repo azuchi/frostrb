@@ -119,6 +119,7 @@ module FROST
   def aggregate(commitment_list, msg, group_pubkey, sig_shares)
     raise ArgumentError, "msg must be String." unless msg.is_a?(String)
     raise ArgumentError, "group_pubkey must be ECDSA::Point." unless group_pubkey.is_a?(ECDSA::Point)
+    raise ArgumentError, "The numbers of commitment_list and sig_shares do not match." unless commitment_list.length == sig_shares.length
 
     binding_factors = compute_binding_factors(group_pubkey, commitment_list, msg)
     group_commitment = compute_group_commitment(commitment_list, binding_factors)

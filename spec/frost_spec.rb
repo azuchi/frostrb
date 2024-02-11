@@ -3,6 +3,8 @@ require 'spec_helper'
 
 RSpec.describe FROST do
 
+  let(:group) { ECDSA::Group::Secp256k1 }
+
   shared_examples "Test Vector" do
     it do
       # key generation
@@ -112,14 +114,12 @@ RSpec.describe FROST do
 
   describe "Test Vector" do
     context "secp256k1" do
-      let(:group) { ECDSA::Group::Secp256k1 }
       let(:vectors) { load_fixture("secp256k1/vectors.json") }
       it_behaves_like "Test Vector", "secp256k1"
       it_behaves_like "frost process", "secp256k1"
     end
 
     context "secp256k1 big identifiers" do
-      let(:group) { ECDSA::Group::Secp256k1 }
       let(:vectors) { load_fixture("secp256k1/vectors-big-identifier.json") }
       it_behaves_like "Test Vector", "secp256k1 with big identifier"
     end
@@ -138,4 +138,19 @@ RSpec.describe FROST do
     end
   end
 
+  describe "#aggregate" do
+    context "with long commitment list" do
+      it do
+        secret = FROST::SigningKey.generate(group)
+        group_pubkey = secret.to_point
+        comm1 = FROST::Commitments.new(1, group_pubkey, group_pubkey) # fake commitments
+        comm2 = FROST::Commitments.new(2, group_pubkey, group_pubkey) # fake commitments
+        comm3 = FROST::Commitments.new(3, group_pubkey, group_pubkey) # fake commitments
+        msg = ""
+        sig_shares = [1, 2]
+        expect{ described_class.aggregate([comm1, comm2, comm3], msg, group_pubkey, sig_shares) }.
+          to raise_error("The numbers of commitment_list and sig_shares do not match.")
+      end
+    end
+  end
 end
