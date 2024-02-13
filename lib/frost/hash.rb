@@ -48,6 +48,14 @@ module FROST
       hash(msg, group, "com")
     end
 
+    # Hash function for a FROST ciphersuite, used for the DKG.
+    # @param [String] msg The message to be hashed.
+    # @param [ECDSA::Group] group The elliptic curve group.
+    # @return [Integer] The hash value.
+    def hdkg(msg, group)
+      hash_to_field(msg, group, "dkg")
+    end
+
     def hash_to_field(msg, group, context)
       h2c = case group
             when ECDSA::Group::Secp256k1

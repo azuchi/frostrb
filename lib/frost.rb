@@ -16,6 +16,7 @@ module FROST
   autoload :SecretShare, "frost/secret_share"
   autoload :Polynomial, "frost/polynomial"
   autoload :SigningKey, "frost/signing_key"
+  autoload :DKG, "frost/dkg"
 
   module_function
 

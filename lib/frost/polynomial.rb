@@ -49,6 +49,27 @@ module FROST
       SecretShare.new(identifier, last, group)
     end
 
+    # Generate coefficient commitments
+    # @return [Array] A list of coefficient commitment (ECDSA::Point).
+    def gen_commitments
+      coefficients.map{|c| group.generator * c }
+    end
+
+    # Generate proof of knowledge for secret.
+    # @param [Integer] identifier Identifier of the owner of this polynomial.
+    # @return [FROST::Signature]
+    def gen_proof_of_knowledge(identifier)
+      k = SecureRandom.random_number(group.order - 1)
+      r = group.generator * k
+      a0 = coefficients.first
+      a0_g = group.generator * a0
+      msg = FROST.encode_identifier(identifier, group) + [a0_g.to_hex + r.to_hex].pack("H*")
+      challenge = Hash.hdkg(msg, group)
+      field = ECDSA::PrimeField.new(group.order)
+      s = field.mod(k + a0 * challenge)
+      FROST::Signature.new(r, s)
+    end
+
     # Generates the lagrange coefficient for the i'th participant.
     # @param [Array] x_coordinates The list of x-coordinates.
     # @param [Integer] xi an x-coordinate contained in x_coordinates.
