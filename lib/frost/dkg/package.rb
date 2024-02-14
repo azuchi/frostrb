@@ -24,6 +24,19 @@ module FROST
       def verification_key
         commitments.first
       end
+
+      # Verify share.
+      # @param [FROST::SecretShare] share
+      # @return [Boolean]
+      def verify_share(share)
+        x = share.identifier
+        result = commitments[1..-1].inject(commitments.first) do |sum, com|
+          tmp = com * x
+          x *= x
+          sum + tmp
+        end
+        result == share.to_point
+      end
     end
   end
 end
