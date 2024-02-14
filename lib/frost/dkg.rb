@@ -23,6 +23,22 @@ module FROST
       [polynomial, Package.new(identifier, polynomial.gen_commitments, polynomial.gen_proof_of_knowledge(identifier))]
     end
 
+    # Generate proof of knowledge for secret.
+    # @param [Integer] identifier Identifier of the owner of polynomial.
+    # @param [FROST::Polynomial] polynomial Polynomial containing secret.
+    # @return [FROST::Signature]
+    def gen_proof_of_knowledge(identifier, polynomial)
+      k = SecureRandom.random_number(polynomial.group.order - 1)
+      r = polynomial.group.generator * k
+      a0 = polynomial.coefficients.first
+      a0_g = polynomial.group.generator * a0
+      msg = FROST.encode_identifier(identifier, polynomial.group) + [a0_g.to_hex + r.to_hex].pack("H*")
+      challenge = Hash.hdkg(msg, polynomial.group)
+      field = ECDSA::PrimeField.new(polynomial.group.order)
+      s = field.mod(k + a0 * challenge)
+      FROST::Signature.new(r, s)
+    end
+
     # Verify proof of knowledge for received commitment.
     # @param [FROST::DKG::Package] package Received package.
     # @return [Boolean]
@@ -32,6 +48,11 @@ module FROST
         [verification_key.to_hex + package.proof.r.to_hex].pack("H*")
       challenge = Hash.hdkg(msg, verification_key.group)
       package.proof.r == verification_key.group.generator * package.proof.s + (verification_key * challenge).negate
+    end
+
+    # Performs the second part of DKG.
+    def part2(packages)
+
     end
   end
 end

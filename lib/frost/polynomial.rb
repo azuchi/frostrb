@@ -59,15 +59,7 @@ module FROST
     # @param [Integer] identifier Identifier of the owner of this polynomial.
     # @return [FROST::Signature]
     def gen_proof_of_knowledge(identifier)
-      k = SecureRandom.random_number(group.order - 1)
-      r = group.generator * k
-      a0 = coefficients.first
-      a0_g = group.generator * a0
-      msg = FROST.encode_identifier(identifier, group) + [a0_g.to_hex + r.to_hex].pack("H*")
-      challenge = Hash.hdkg(msg, group)
-      field = ECDSA::PrimeField.new(group.order)
-      s = field.mod(k + a0 * challenge)
-      FROST::Signature.new(r, s)
+      FROST::DKG.gen_proof_of_knowledge(identifier, self)
     end
 
     # Generates the lagrange coefficient for the i'th participant.
