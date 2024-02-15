@@ -27,5 +27,16 @@ module FROST
       ECDSA::Format::PointOctetString.encode(r, compression: true) +
         ECDSA::Format::IntegerOctetString.encode(s, 32)
     end
+
+    # Decode hex value to FROST::Signature.
+    # @param [String] hex_value Hex value of signature.
+    # @param [ECDSA::Group] group Group of elliptic curve.
+    # @return [FROST::Signature]
+    def self.decode(hex_value, group)
+      data = [hex_value].pack("H*")
+      r = ECDSA::Format::PointOctetString.decode(data[0...33], group)
+      s = ECDSA::Format::IntegerOctetString.decode(data[33..-1])
+      Signature.new(r,s )
+    end
   end
 end
