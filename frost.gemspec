@@ -3,7 +3,7 @@
 require_relative "lib/frost/version"
 
 Gem::Specification.new do |spec|
-  spec.name = "frost-ruby"
+  spec.name = "frostrb"
   spec.version = FROST::VERSION
   spec.authors = ["azuchi"]
   spec.email = ["azuchi@chaintope.com"]
