@@ -62,6 +62,18 @@ module FROST
       FROST::DKG.gen_proof_of_knowledge(identifier, self)
     end
 
+    # Get secret value in this polynomial.
+    # @return [Integer] secret
+    def secret
+      coefficients.first
+    end
+
+    # Get point to correspond to secret in this polynomial.
+    # @return [ECDSA::Point] secret point
+    def verification_point
+      group.generator * secret
+    end
+
     # Generates the lagrange coefficient for the i'th participant.
     # @param [Array] x_coordinates The list of x-coordinates.
     # @param [Integer] xi an x-coordinate contained in x_coordinates.

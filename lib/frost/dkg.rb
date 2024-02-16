@@ -28,6 +28,9 @@ module FROST
     # @param [FROST::Polynomial] polynomial Polynomial containing secret.
     # @return [FROST::Signature]
     def gen_proof_of_knowledge(identifier, polynomial)
+      raise ArgumentError, "identifier must be Integer." unless identifier.is_a?(Integer)
+      raise ArgumentError, "polynomial must be FROST::Polynomial." unless polynomial.is_a?(FROST::Polynomial)
+
       k = SecureRandom.random_number(polynomial.group.order - 1)
       r = polynomial.group.generator * k
       a0 = polynomial.coefficients.first
@@ -43,6 +46,8 @@ module FROST
     # @param [FROST::DKG::Package] package Received package.
     # @return [Boolean]
     def verify_proof_of_knowledge(package)
+      raise ArgumentError, "package must be FROST::DKG::Package." unless package.is_a?(FROST::DKG::Package)
+
       verification_key = package.verification_key
       msg = FROST.encode_identifier(package.identifier, verification_key.group) +
         [verification_key.to_hex + package.proof.r.to_hex].pack("H*")
@@ -50,9 +55,26 @@ module FROST
       package.proof.r == verification_key.group.generator * package.proof.s + (verification_key * challenge).negate
     end
 
-    # Performs the second part of DKG.
-    def part2(packages)
+    # Compute signing share using received shares from other participants
+    # @param [FROST::Polynomial] polynomial Own polynomial contains own secret.
+    # @param [Array] received_shares Array of FROST::SecretShare received by other participants.
+    # @return [FROST::SecretShare] Signing share.
+    def compute_signing_share(polynomial, received_shares)
+      raise ArgumentError, "polynomial must be FROST::Polynomial." unless polynomial.is_a?(FROST::Polynomial)
+      identifier = received_shares.first.identifier
+      s_id = received_shares.sum {|share| share.share}
+      field = ECDSA::PrimeField.new(polynomial.group.order)
+      FROST::SecretShare.new(
+        identifier, field.mod(s_id + polynomial.gen_share(identifier).share), polynomial.group)
+    end
 
+    # Compute Group public key.
+    # @param [FROST::Polynomial] polynomial Own polynomial contains own secret.
+    # @param [Array] received_packages Array of FROST::DKG::Package received by other participants.
+    # @return [ECDSA::Point] Group public key.
+    def compute_group_pubkey(polynomial, received_packages)
+      raise ArgumentError, "polynomial must be FROST::Polynomial." unless polynomial.is_a?(FROST::Polynomial)
+      received_packages.inject(polynomial.verification_point) {|sum, package| sum + package.commitments.first }
     end
   end
 end

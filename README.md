@@ -71,3 +71,67 @@ sig = FROST.aggregate(commitment_list, msg, group_pubkey, [sig_share1, sig_share
 # verify final signature
 FROST.verify(sig, group_pubkey, msg)
 ```
+
+### Using DKG
+
+DKG can be run as below.
+
+```ruby
+max_signer = 5
+min_signer = 3
+
+secrets = {}
+round1_outputs = {}
+# Round 1:
+# For each participant, perform the first part of the DKG protocol.
+1.upto(max_signer) do |i|
+  polynomial, package = FROST::DKG.part1(i, min_signer, max_signer, group)
+  secrets[i] = polynomial
+  round1_outputs[i] = package
+end
+
+# Each participant sends their commitments and proof to other participants.
+received_package = {}
+1.upto(max_signer) do |i|
+  received_package[i] = round1_outputs.select {|k, _| k != i}.values
+end
+
+# Each participant verify knowledge of proof in received package.
+received_package.each do |id, packages|
+  packages.each do |package|
+    expect(FROST::DKG.verify_proof_of_knowledge(package)).to be true
+  end
+end
+
+# Round 2:
+# Each participant generate share for other participants and send it.
+received_shares = {}
+1.upto(max_signer) do |i|
+  polynomial = secrets[i] # own secret
+  1.upto(max_signer) do |o|
+    next if i == o
+    received_shares[o] ||= []
+    received_shares[o] << [i, polynomial.gen_share(o)]
+  end
+end
+
+# Each participant verify received shares.
+1.upto(max_signer) do |i|
+  received_shares[i].each do |send_by, share|
+    target_package = received_package[i].find{ |package| package.identifier == send_by }
+    expect(target_package.verify_share(share)).to be true
+  end
+end
+
+# Each participant compute signing share.
+signing_shares = {}
+1.upto(max_signer) do |i|
+  shares = received_shares[i].map{|_, share| share}
+  signing_shares[i] = FROST::DKG.compute_signing_share(secrets[i], shares)
+end
+
+# Participant 1 compute group public key.
+group_pubkey = FROST::DKG.compute_group_pubkey(secrets[1], received_package[1])
+
+# The subsequent signing phase is the same as above with signing_shares as the secret.
+```
