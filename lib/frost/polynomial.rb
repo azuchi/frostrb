@@ -75,22 +75,34 @@ module FROST
     end
 
     # Generates the lagrange coefficient for the i'th participant.
+    # The Lagrange polynomial for a set of points (xj, yj) for 0 <= j <= k is
+    # ∑_{i=0}^k yi.ℓi(x), where ℓi(x) is the Lagrange basis polynomial:
+    # ℓi(x) = ∏_{0≤j≤k; j≠i} (x - xj) / (xi - xj).
+    # This computes ℓj(x) for the set of points `xs` and for the j corresponding to the given xj.
     # @param [Array] x_coordinates The list of x-coordinates.
     # @param [Integer] xi an x-coordinate contained in x_coordinates.
     # @param [ECDSA::Group] group Elliptic curve group.
+    # @param [Integer] x (Optional) if x is nil, it uses 0 for it (since Identifiers can't be 0).
     # @return [Integer] The lagrange coefficient.
-    def self.derive_interpolating_value(x_coordinates, xi, group)
+    def self.derive_interpolating_value(x_coordinates, xi, group, x: nil)
       raise ArgumentError, "xi is not included in x_coordinates." unless x_coordinates.include?(xi)
       raise ArgumentError, "Duplicate values in x_coordinates." if (x_coordinates.length - x_coordinates.uniq.length) > 0
       raise ArgumentError, "group must be ECDSA::Group." unless group.is_a?(ECDSA::Group)
+      raise ArgumentError, "x must be Integer." if x && !x.is_a?(Integer)
 
       field = ECDSA::PrimeField.new(group.order)
       numerator = 1
       denominator = 1
+
       x_coordinates.each do |xj|
         next if xi == xj
-        numerator *= xj
-        denominator *= (xj - xi)
+        if x
+          numerator *= (x - xj)
+          denominator *= (xi - xj)
+        else
+          numerator *= xj
+          denominator *= (xj - xi)
+        end
       end
 
       field.mod(numerator * field.inverse(denominator))

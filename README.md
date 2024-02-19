@@ -135,3 +135,42 @@ group_pubkey = FROST::DKG.compute_group_pubkey(secrets[1], received_package[1])
 
 # The subsequent signing phase is the same as above with signing_shares as the secret.
 ```
+
+### Share repair
+
+Using `FROST::Repairable` module, you can repair existing (or new) participant's share with the cooperation of T participants.
+
+```ruby
+# Dealer generate shares.
+FROST::SigningKey.generate(ECDSA::Group::Secp256k1)
+polynomial = dealer.gen_poly(min_signers - 1)
+shares = 1.upto(max_signers).map {|identifier| polynomial.gen_share(identifier) }
+
+# Signer 2 will lose their share
+# Signers (helpers) 1, 4 and 5 will help signer 2 (participant) to recover their share
+helper1 = shares[0]
+helper4 = shares[3]
+helper5 = shares[4]
+helper_shares = [helper1, helper4, helper5]
+helpers = helper_shares.map(&:identifier)
+participant_share = shares[1]
+
+# Each helper computes delta values.
+received_values = {}
+helper_shares.each do |helper_share|
+  delta_values = FROST::Repairable.step1(helpers, participant_share.identifier, helper_share)
+  delta_values.each do |target_id, value|
+    received_values[target_id] ||= []
+    received_values[target_id] << value
+  end
+end
+
+# Each helper send sum value to participant.
+participant_received_values = []
+received_values.each do |_, values|
+  participant_received_values << FROST::Repairable.step2(values, ECDSA::Group::Secp256k1)
+end
+
+# Participant can obtain his share.
+repair_share = FROST::Repairable.step3(2, participant_received_values, ECDSA::Group::Secp256k1)
+```
