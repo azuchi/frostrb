@@ -11,7 +11,7 @@ module FROST
     # @param [Integer] identifier
     # @param [ECDSA::Group] group Group of elliptic curve.
     # @return [Array] The triple of polynomial and public package(FROST::DKG::Package)
-    def part1(identifier, min_signers, max_signers, group)
+    def generate_secret(identifier, min_signers, max_signers, group)
       raise ArgumentError, "identifier must be Integer" unless identifier.is_a?(Integer)
       raise ArgumentError, "identifier must be greater than 0." if identifier < 1
       raise ArgumentError, "group must be ECDSA::Group." unless group.is_a?(ECDSA::Group)

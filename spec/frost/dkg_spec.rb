@@ -113,7 +113,7 @@ RSpec.describe FROST::DKG do
       # Round 1:
       # For each participant, perform the first part of the DKG protocol.
       1.upto(max_signer) do |i|
-        polynomial, package = FROST::DKG.part1(i, min_signer, max_signer, group)
+        polynomial, package = FROST::DKG.generate_secret(i, min_signer, max_signer, group)
         secrets[i] = polynomial
         round1_outputs[i] = package
       end

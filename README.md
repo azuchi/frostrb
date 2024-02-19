@@ -85,7 +85,7 @@ round1_outputs = {}
 # Round 1:
 # For each participant, perform the first part of the DKG protocol.
 1.upto(max_signer) do |i|
-  polynomial, package = FROST::DKG.part1(i, min_signer, max_signer, group)
+  polynomial, package = FROST::DKG.generate_secret(i, min_signer, max_signer, group)
   secrets[i] = polynomial
   round1_outputs[i] = package
 end
@@ -93,7 +93,7 @@ end
 # Each participant sends their commitments and proof to other participants.
 received_package = {}
 1.upto(max_signer) do |i|
-  received_package[i] = round1_outputs.select {|k, _| k != i}.values
+  received_package[i] = round1_outputs.select { |k, _| k != i }.values
 end
 
 # Each participant verify knowledge of proof in received package.
@@ -118,7 +118,7 @@ end
 # Each participant verify received shares.
 1.upto(max_signer) do |i|
   received_shares[i].each do |send_by, share|
-    target_package = received_package[i].find{ |package| package.identifier == send_by }
+    target_package = received_package[i].find { |package| package.identifier == send_by }
     expect(target_package.verify_share(share)).to be true
   end
 end
@@ -126,7 +126,7 @@ end
 # Each participant compute signing share.
 signing_shares = {}
 1.upto(max_signer) do |i|
-  shares = received_shares[i].map{|_, share| share}
+  shares = received_shares[i].map { |_, share| share }
   signing_shares[i] = FROST::DKG.compute_signing_share(secrets[i], shares)
 end
 
