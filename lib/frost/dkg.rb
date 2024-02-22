@@ -2,6 +2,7 @@ module FROST
   # Distributed Key Generation feature.
   module DKG
 
+    autoload :SecretPackage, "frost/dkg/secret_package"
     autoload :Package, "frost/dkg/package"
 
     module_function
@@ -10,17 +11,18 @@ module FROST
     # Participant generate key and commitments, proof of knowledge for secret.
     # @param [Integer] identifier
     # @param [ECDSA::Group] group Group of elliptic curve.
-    # @return [Array] The triple of polynomial and public package(FROST::DKG::Package)
+    # @return [FROST::DKG::SecretPackage] Secret received_package for owner.
     def generate_secret(identifier, min_signers, max_signers, group)
       raise ArgumentError, "identifier must be Integer" unless identifier.is_a?(Integer)
       raise ArgumentError, "identifier must be greater than 0." if identifier < 1
       raise ArgumentError, "group must be ECDSA::Group." unless group.is_a?(ECDSA::Group)
+      raise ArgumentError, "min_signers must be Integer." unless min_signers.is_a?(Integer)
+      raise ArgumentError, "max_singers must be Integer." unless max_signers.is_a?(Integer)
       raise ArgumentError, "max_signers must be greater than or equal to min_signers." if max_signers < min_signers
 
       secret = FROST::SigningKey.generate(group)
-      # Every participant P_i samples t random values (a_{i0}, ..., a_{i(t−1)}) ← Z_q
       polynomial = secret.gen_poly(min_signers - 1)
-      [polynomial, Package.new(identifier, polynomial.gen_commitments, polynomial.gen_proof_of_knowledge(identifier))]
+      SecretPackage.new(identifier, min_signers, max_signers, polynomial)
     end
 
     # Generate proof of knowledge for secret.
@@ -43,38 +45,45 @@ module FROST
     end
 
     # Verify proof of knowledge for received commitment.
-    # @param [FROST::DKG::Package] package Received package.
+    # @param [FROST::DKG::SecretPackage] secret_package Verifier's secret package.
+    # @param [FROST::DKG::Package] received_package Received received_package.
     # @return [Boolean]
-    def verify_proof_of_knowledge(package)
-      raise ArgumentError, "package must be FROST::DKG::Package." unless package.is_a?(FROST::DKG::Package)
+    def verify_proof_of_knowledge(secret_package, received_package)
+      raise ArgumentError, "secret_package must be FROST::DKG::SecretPackage." unless secret_package.is_a?(FROST::DKG::SecretPackage)
+      raise ArgumentError, "received_package must be FROST::DKG::Package." unless received_package.is_a?(FROST::DKG::Package)
+      raise FROST::Error, "Invalid number of commitments in package." unless secret_package.min_signers == received_package.commitments.length
 
-      verification_key = package.verification_key
-      msg = FROST.encode_identifier(package.identifier, verification_key.group) +
-        [verification_key.to_hex + package.proof.r.to_hex].pack("H*")
+      verification_key = received_package.verification_key
+      msg = FROST.encode_identifier(received_package.identifier, verification_key.group) +
+        [verification_key.to_hex + received_package.proof.r.to_hex].pack("H*")
       challenge = Hash.hdkg(msg, verification_key.group)
-      package.proof.r == verification_key.group.generator * package.proof.s + (verification_key * challenge).negate
+      received_package.proof.r == verification_key.group.generator * received_package.proof.s + (verification_key * challenge).negate
     end
 
     # Compute signing share using received shares from other participants
-    # @param [FROST::Polynomial] polynomial Own polynomial contains own secret.
+    # @param [FROST::DKG::SecretPackage] secret_package Own secret received_package.
     # @param [Array] received_shares Array of FROST::SecretShare received by other participants.
     # @return [FROST::SecretShare] Signing share.
-    def compute_signing_share(polynomial, received_shares)
-      raise ArgumentError, "polynomial must be FROST::Polynomial." unless polynomial.is_a?(FROST::Polynomial)
+    def compute_signing_share(secret_package, received_shares)
+      raise ArgumentError, "polynomial must be FROST::DKG::SecretPackage." unless secret_package.is_a?(FROST::DKG::SecretPackage)
+      raise FROST::Error, "Invalid number of received_shares." unless secret_package.max_signers - 1 == received_shares.length
+
       identifier = received_shares.first.identifier
       s_id = received_shares.sum {|share| share.share}
-      field = ECDSA::PrimeField.new(polynomial.group.order)
+      field = ECDSA::PrimeField.new(secret_package.group.order)
       FROST::SecretShare.new(
-        identifier, field.mod(s_id + polynomial.gen_share(identifier).share), polynomial.group)
+        identifier, field.mod(s_id + secret_package.gen_share(identifier).share), secret_package.group)
     end
 
     # Compute Group public key.
-    # @param [FROST::Polynomial] polynomial Own polynomial contains own secret.
+    # @param [FROST::DKG::SecretPackage] secret_package Own secret received_package.
     # @param [Array] received_packages Array of FROST::DKG::Package received by other participants.
     # @return [ECDSA::Point] Group public key.
-    def compute_group_pubkey(polynomial, received_packages)
-      raise ArgumentError, "polynomial must be FROST::Polynomial." unless polynomial.is_a?(FROST::Polynomial)
-      received_packages.inject(polynomial.verification_point) {|sum, package| sum + package.commitments.first }
+    def compute_group_pubkey(secret_package, received_packages)
+      raise ArgumentError, "polynomial must be FROST::DKG::SecretPackage." unless secret_package.is_a?(FROST::DKG::SecretPackage)
+      raise FROST::Error, "Invalid number of received_packages." unless secret_package.max_signers - 1 == received_packages.length
+
+      received_packages.inject(secret_package.verification_point) {|sum, package| sum + package.commitments.first }
     end
   end
 end

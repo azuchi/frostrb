@@ -16,12 +16,12 @@ RSpec.describe FROST::DKG do
       # Round1
       # generate secret and commitments and proof of knowledge.
       received_packages = {}
-      polynomials = {}
+      secret_packages = {}
       participants.each do |p|
         identifier = p['identifier']
         coeffs = [p['signing_key'].hex, p['coefficient'].hex]
         polynomial = FROST::Polynomial.new(coeffs, group)
-        polynomials[identifier] = polynomial
+        secret_packages[identifier] = FROST::DKG::SecretPackage.new(identifier, min_signers, max_signers, polynomial)
         commitments = polynomial.gen_commitments
         p['vss_commitments'].each.with_index do |commitment, i|
           expect(commitments[i].to_hex).to eq(commitment)
@@ -37,8 +37,9 @@ RSpec.describe FROST::DKG do
       # Each participant verify knowledge of proof in received package.
       participants.each do |p|
         identifier = p['identifier']
+        secret_package = secret_packages[identifier]
         received_packages[identifier].each do |package|
-          expect(described_class.verify_proof_of_knowledge(package)).to be true
+          expect(described_class.verify_proof_of_knowledge(secret_package, package)).to be true
         end
       end
 
@@ -47,11 +48,11 @@ RSpec.describe FROST::DKG do
       received_shares = {}
       participants.each do |participant|
         identifier = participant['identifier']
-        polynomial = polynomials[identifier]
+        secret_package = secret_packages[identifier]
         1.upto(max_signers).each do |target|
           next if identifier == target
           received_shares[target] ||= []
-          received_shares[target] << [identifier, polynomial.gen_share(target)]
+          received_shares[target] << [identifier, secret_package.gen_share(target)]
         end
       end
 
@@ -78,14 +79,14 @@ RSpec.describe FROST::DKG do
       secret_shares = {}
       participants.each do |participant|
         identifier = participant['identifier']
-        share = described_class.compute_signing_share(polynomials[identifier], received_shares[identifier].map{|_, share| share})
+        share = described_class.compute_signing_share(secret_packages[identifier], received_shares[identifier].map{|_, share| share})
         secret_shares[identifier] = share
         expect(share.share).to eq(participant['signing_share'].hex)
         expect(share.to_point.to_hex).to eq(participant['verifying_share'])
       end
 
       # 1 computes group public key.
-      group_pubkey = described_class.compute_group_pubkey(polynomials[1], received_packages[1])
+      group_pubkey = described_class.compute_group_pubkey(secret_packages[1], received_packages[1])
       expect(group_pubkey.to_hex).to eq(vectors['inputs']['verifying_key'])
     end
   end
@@ -108,14 +109,14 @@ RSpec.describe FROST::DKG do
       max_signer = 5
       min_signer = 3
 
-      secrets = {}
+      secret_packages = {}
       round1_outputs = {}
       # Round 1:
       # For each participant, perform the first part of the DKG protocol.
       1.upto(max_signer) do |i|
-        polynomial, package = FROST::DKG.generate_secret(i, min_signer, max_signer, group)
-        secrets[i] = polynomial
-        round1_outputs[i] = package
+        secret_package = FROST::DKG.generate_secret(i, min_signer, max_signer, group)
+        secret_packages[i] = secret_package
+        round1_outputs[i] = secret_package.public_package
       end
 
       # Each participant send their commitments and proof to other participants.
@@ -126,8 +127,9 @@ RSpec.describe FROST::DKG do
 
       # Each participant verify knowledge of proof in received package.
       received_package.each do |id, packages|
+        secret_package = secret_packages[id]
         packages.each do |package|
-          expect(FROST::DKG.verify_proof_of_knowledge(package)).to be true
+          expect(FROST::DKG.verify_proof_of_knowledge(secret_package, package)).to be true
         end
       end
 
@@ -135,11 +137,11 @@ RSpec.describe FROST::DKG do
       # Each participant generate share for other participants and send it.
       received_shares = {}
       1.upto(max_signer) do |i|
-        polynomial = secrets[i] # own secret
+        secret_package = secret_packages[i] # own secret
         1.upto(max_signer) do |o|
           next if i == o
           received_shares[o] ||= []
-          received_shares[o] << [i, polynomial.gen_share(o)]
+          received_shares[o] << [i, secret_package.gen_share(o)]
         end
       end
 
@@ -155,12 +157,12 @@ RSpec.describe FROST::DKG do
       signing_shares = {}
       1.upto(max_signer) do |i|
         shares = received_shares[i].map{|_, share| share}
-        signing_shares[i] = FROST::DKG.compute_signing_share(secrets[i], shares)
+        signing_shares[i] = FROST::DKG.compute_signing_share(secret_packages[i], shares)
       end
 
       # Compute group public key.
       compute_pubkeys = 1.upto(max_signer).map do |i|
-        FROST::DKG.compute_group_pubkey(secrets[i], received_package[i])
+        FROST::DKG.compute_group_pubkey(secret_packages[i], received_package[i])
       end
       # All participants calculate the same group pubkey.
       expect(compute_pubkeys.uniq.length).to eq(1)

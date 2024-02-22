@@ -80,14 +80,14 @@ DKG can be run as below.
 max_signer = 5
 min_signer = 3
 
-secrets = {}
+secret_packages = {}
 round1_outputs = {}
 # Round 1:
 # For each participant, perform the first part of the DKG protocol.
 1.upto(max_signer) do |i|
-  polynomial, package = FROST::DKG.generate_secret(i, min_signer, max_signer, group)
-  secrets[i] = polynomial
-  round1_outputs[i] = package
+  secret_package = FROST::DKG.generate_secret(i, min_signer, max_signer, group)
+  secret_packages[i] = secret_package
+  round1_outputs[i] = secret_package.public_package
 end
 
 # Each participant sends their commitments and proof to other participants.
@@ -98,8 +98,9 @@ end
 
 # Each participant verify knowledge of proof in received package.
 received_package.each do |id, packages|
+  secret_package = secret_packages[id]
   packages.each do |package|
-    expect(FROST::DKG.verify_proof_of_knowledge(package)).to be true
+    expect(FROST::DKG.verify_proof_of_knowledge(secret_package, package)).to be true
   end
 end
 
@@ -107,11 +108,11 @@ end
 # Each participant generate share for other participants and send it.
 received_shares = {}
 1.upto(max_signer) do |i|
-  polynomial = secrets[i] # own secret
+  secret_package = secret_packages[i] # own secret
   1.upto(max_signer) do |o|
     next if i == o
     received_shares[o] ||= []
-    received_shares[o] << [i, polynomial.gen_share(o)]
+    received_shares[o] << [i, secret_package.gen_share(o)]
   end
 end
 
@@ -127,11 +128,11 @@ end
 signing_shares = {}
 1.upto(max_signer) do |i|
   shares = received_shares[i].map { |_, share| share }
-  signing_shares[i] = FROST::DKG.compute_signing_share(secrets[i], shares)
+  signing_shares[i] = FROST::DKG.compute_signing_share(secret_packages[i], shares)
 end
 
 # Participant 1 compute group public key.
-group_pubkey = FROST::DKG.compute_group_pubkey(secrets[1], received_package[1])
+group_pubkey = FROST::DKG.compute_group_pubkey(secret_packages[1], received_package[1])
 
 # The subsequent signing phase is the same as above with signing_shares as the secret.
 ```
