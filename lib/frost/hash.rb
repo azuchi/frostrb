@@ -16,7 +16,7 @@ module FROST
       hash_to_field(msg, group, "rho")
     end
 
-    # H3 hash function.
+    # H2 hash function.
     # @param [String] msg The message to be hashed.
     # @param [ECDSA::Group] group The elliptic curve group.
     # @return [Integer]
