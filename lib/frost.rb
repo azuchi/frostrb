@@ -73,6 +73,7 @@ module FROST
   # @param [ECDSA::Point] group_commitment The group commitment.
   # @param [ECDSA::Point] group_pubkey The public key corresponding to the group signing key.
   # @param [String] msg The message to be signed.
+  # @return [Integer] challenge
   def compute_challenge(group_commitment, group_pubkey, msg)
     raise ArgumentError, "group_commitment must be ECDSA::Point." unless group_commitment.is_a?(ECDSA::Point)
     raise ArgumentError, "group_pubkey must be ECDSA::Point." unless group_pubkey.is_a?(ECDSA::Point)
