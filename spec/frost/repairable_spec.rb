@@ -111,7 +111,7 @@ RSpec.describe FROST::Repairable do
     end
   end
 
-  describe "#step2" do
+  describe "#step3" do
     context "secp256k1" do
       let(:vectors) { load_fixture("secp256k1/repair-share.json") }
       it_behaves_like "repair share step3", "secp256k1"
