@@ -3,19 +3,26 @@ module FROST
   class SecretShare
     attr_reader :identifier
     attr_reader :share
-    attr_reader :group
+    attr_reader :context
 
     # Generate secret share.
+    # @param [FROST::Context] context
     # @param [Integer] identifier Identifier of this share.
     # @param [Integer] share A share.
-    def initialize(identifier, share, group)
+    def initialize(context, identifier, share)
       raise ArgumentError, "identifier must be Integer." unless identifier.is_a?(Integer)
       raise ArgumentError, "share must be Integer." unless share.is_a?(Integer)
-      raise ArgumentError, "group must be ECDSA::Group" unless group.is_a?(ECDSA::Group)
+      raise ArgumentError "context must be FROST::Context." unless context.is_a?(FROST::Context)
 
       @identifier = identifier
       @share = share
-      @group = group
+      @context = context
+    end
+
+    # Get group
+    # @return [ECDSA::Group]
+    def group
+      context.group
     end
 
     # Compute public key.
@@ -27,7 +34,7 @@ module FROST
     # Generate signing share key.
     # @return [FROST::SigningKey]
     def to_key
-      FROST::SigningKey.new(share, group)
+      FROST::SigningKey.new(context, share)
     end
   end
 end

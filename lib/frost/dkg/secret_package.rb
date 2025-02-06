@@ -43,6 +43,12 @@ module FROST
         polynomial.group
       end
 
+      # Get FROST context.
+      # @return [FROST::Context]
+      def context
+        polynomial.context
+      end
+
       # Get verification point.
       # @return [ECDSA::Point]
       def verification_point

@@ -9,18 +9,19 @@ module FROST
 
     # Performs the first part of the DKG.
     # Participant generate key and commitments, proof of knowledge for secret.
-    # @param [Integer] identifier
-    # @param [ECDSA::Group] group Group of elliptic curve.
+    # @param [FROST::Context] context
+    # @param [Integer] identifier Party's identifier.
+    # @param [Integer] min_signers The number of min signers.
     # @return [FROST::DKG::SecretPackage] Secret received_package for owner.
-    def generate_secret(identifier, min_signers, max_signers, group)
+    def generate_secret(context, identifier, min_signers, max_signers)
       raise ArgumentError, "identifier must be Integer" unless identifier.is_a?(Integer)
       raise ArgumentError, "identifier must be greater than 0." if identifier < 1
-      raise ArgumentError, "group must be ECDSA::Group." unless group.is_a?(ECDSA::Group)
+      raise ArgumentError, "context must be FROST::Context." unless context.is_a?(FROST::Context)
       raise ArgumentError, "min_signers must be Integer." unless min_signers.is_a?(Integer)
       raise ArgumentError, "max_singers must be Integer." unless max_signers.is_a?(Integer)
       raise ArgumentError, "max_signers must be greater than or equal to min_signers." if max_signers < min_signers
 
-      secret = FROST::SigningKey.generate(group)
+      secret = FROST::SigningKey.generate(context)
       polynomial = secret.gen_poly(min_signers - 1)
       SecretPackage.new(identifier, min_signers, max_signers, polynomial)
     end
@@ -38,10 +39,10 @@ module FROST
       a0 = polynomial.coefficients.first
       a0_g = polynomial.group.generator * a0
       msg = FROST.encode_identifier(identifier, polynomial.group) + [a0_g.to_hex + r.to_hex].pack("H*")
-      challenge = Hash.hdkg(msg, polynomial.group)
+      challenge = Hash.hdkg(msg, polynomial.context)
       field = ECDSA::PrimeField.new(polynomial.group.order)
       s = field.mod(k + a0 * challenge)
-      FROST::Signature.new(r, s)
+      FROST::Signature.new(polynomial.context, r, s)
     end
 
     # Verify proof of knowledge for received commitment.
@@ -56,7 +57,7 @@ module FROST
       verification_key = received_package.verification_key
       msg = FROST.encode_identifier(received_package.identifier, verification_key.group) +
         [verification_key.to_hex + received_package.proof.r.to_hex].pack("H*")
-      challenge = Hash.hdkg(msg, verification_key.group)
+      challenge = Hash.hdkg(msg, secret_package.polynomial.context)
       received_package.proof.r == verification_key.group.generator * received_package.proof.s + (verification_key * challenge).negate
     end
 
@@ -72,7 +73,7 @@ module FROST
       s_id = received_shares.sum {|share| share.share}
       field = ECDSA::PrimeField.new(secret_package.group.order)
       FROST::SecretShare.new(
-        identifier, field.mod(s_id + secret_package.gen_share(identifier).share), secret_package.group)
+        secret_package.context, identifier, field.mod(s_id + secret_package.gen_share(identifier).share))
     end
 
     # Compute Group public key.

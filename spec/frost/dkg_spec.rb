@@ -3,6 +3,7 @@ require 'spec_helper'
 RSpec.describe FROST::DKG do
 
   let(:group) { ECDSA::Group::Secp256k1 }
+  let(:ctx) { FROST::Context.new(group, FROST::Type::RFC9591) }
 
   shared_examples "DKG Test Vector" do
     it do
@@ -20,13 +21,13 @@ RSpec.describe FROST::DKG do
       participants.each do |p|
         identifier = p['identifier']
         coeffs = [p['signing_key'].hex, p['coefficient'].hex]
-        polynomial = FROST::Polynomial.new(coeffs, group)
+        polynomial = FROST::Polynomial.new(ctx, coeffs)
         secret_packages[identifier] = FROST::DKG::SecretPackage.new(identifier, min_signers, max_signers, polynomial)
         commitments = polynomial.gen_commitments
         p['vss_commitments'].each.with_index do |commitment, i|
           expect(commitments[i].to_hex).to eq(commitment)
         end
-        proof = FROST::Signature.decode(p['proof_of_knowledge'], group)
+        proof = FROST::Signature.decode(ctx, p['proof_of_knowledge'])
         package = FROST::DKG::Package.new(identifier, commitments, proof)
         [1, 2, 3].select{|v| v != identifier }.each do |target|
           received_packages[target] ||= []
@@ -114,7 +115,7 @@ RSpec.describe FROST::DKG do
       # Round 1:
       # For each participant, perform the first part of the DKG protocol.
       1.upto(max_signer) do |i|
-        secret_package = FROST::DKG.generate_secret(i, min_signer, max_signer, group)
+        secret_package = FROST::DKG.generate_secret(ctx, i, min_signer, max_signer)
         secret_packages[i] = secret_package
         round1_outputs[i] = secret_package.public_package
       end
@@ -189,16 +190,16 @@ RSpec.describe FROST::DKG do
       commitment_list = [comm1, comm2, comm4]
 
       # Round 2: each participant generates their signature share(1 and 2, 4)
-      sig_share1 = FROST.sign(share1, group_pubkey, [hiding_nonce1, binding_nonce1], msg, commitment_list)
-      sig_share2 = FROST.sign(share2, group_pubkey, [hiding_nonce2, binding_nonce2], msg, commitment_list)
-      sig_share4 = FROST.sign(share4, group_pubkey, [hiding_nonce4, binding_nonce4], msg, commitment_list)
+      sig_share1 = FROST.sign(ctx, share1, group_pubkey, [hiding_nonce1, binding_nonce1], msg, commitment_list)
+      sig_share2 = FROST.sign(ctx, share2, group_pubkey, [hiding_nonce2, binding_nonce2], msg, commitment_list)
+      sig_share4 = FROST.sign(ctx, share4, group_pubkey, [hiding_nonce4, binding_nonce4], msg, commitment_list)
 
-      expect(FROST.verify_share(1, share1.to_point, sig_share1, commitment_list, group_pubkey, msg)).to be true
-      expect(FROST.verify_share(2, share2.to_point, sig_share2, commitment_list, group_pubkey, msg)).to be true
-      expect(FROST.verify_share(4, share4.to_point, sig_share4, commitment_list, group_pubkey, msg)).to be true
+      expect(FROST.verify_share(ctx, 1, share1.to_point, sig_share1, commitment_list, group_pubkey, msg)).to be true
+      expect(FROST.verify_share(ctx, 2, share2.to_point, sig_share2, commitment_list, group_pubkey, msg)).to be true
+      expect(FROST.verify_share(ctx, 4, share4.to_point, sig_share4, commitment_list, group_pubkey, msg)).to be true
 
       # Aggregation
-      sig = FROST.aggregate(commitment_list, msg, group_pubkey, [sig_share1, sig_share2, sig_share4])
+      sig = FROST.aggregate(ctx, commitment_list, msg, group_pubkey, [sig_share1, sig_share2, sig_share4])
 
       expect(FROST.verify(sig, group_pubkey, msg)).to be true
     end

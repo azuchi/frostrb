@@ -31,26 +31,26 @@ module FROST
 
     # Step 2 for RTS.
     # Each helper sum received delta values from other helpers.
+    # @param [FROST::Context] context
     # @param [Array] step1_values Array of delta values.
-    # @param [ECDSA::Group] group
     # @return [Integer] Sum of delta values.
-    def step2(step1_values, group)
-      raise ArgumentError, "group must be ECDSA::Group" unless group.is_a?(ECDSA::Group)
+    def step2(context, step1_values)
+      raise ArgumentError, "context must be FROST::Context." unless context.is_a?(FROST::Context)
 
-      field = ECDSA::PrimeField.new(group.order)
+      field = ECDSA::PrimeField.new(context.group.order)
       field.mod(step1_values.sum)
     end
 
     # Participant compute own share with received sum of delta value.
+    # @param [FROST::Context] context
     # @param [Integer] identifier Identifier of the participant whose shares you want to restore.
     # @param [Array] step2_results Array of Step 2 results received from other helpers.
-    # @param [ECDSA::Group] group
     # @return
-    def step3(identifier, step2_results, group)
-      raise ArgumentError, "group must be ECDSA::Group" unless group.is_a?(ECDSA::Group)
+    def step3(context, identifier, step2_results)
+      raise ArgumentError, "context must be FROST::Context." unless context.is_a?(FROST::Context)
 
-      field = ECDSA::PrimeField.new(group.order)
-      FROST::SecretShare.new(identifier, field.mod(step2_results.sum), group)
+      field = ECDSA::PrimeField.new(context.group.order)
+      FROST::SecretShare.new(context, identifier, field.mod(step2_results.sum))
     end
   end
 end

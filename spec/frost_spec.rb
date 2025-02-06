@@ -4,16 +4,17 @@ require 'spec_helper'
 RSpec.describe FROST do
 
   let(:group) { ECDSA::Group::Secp256k1 }
+  let(:ctx) { FROST::Context.new(group, FROST::Type::RFC9591) }
 
   shared_examples "Test Vector" do
     it do
       # key generation
-      secret_key = FROST::SigningKey.new(vectors['inputs']['group_secret_key'].hex, group)
+      secret_key = FROST::SigningKey.new(ctx, vectors['inputs']['group_secret_key'].hex)
       group_pubkey = [vectors['inputs']['group_public_key']].pack("H*")
       group_pubkey = ECDSA::Format::PointOctetString.decode(group_pubkey, group)
       msg = [vectors['inputs']['message']].pack("H*")
       coefficients = vectors['inputs']['share_polynomial_coefficients'].map(&:hex)
-      polynomial = FROST::Polynomial.new(coefficients.prepend(secret_key.scalar), group)
+      polynomial = FROST::Polynomial.new(ctx, coefficients.prepend(secret_key.scalar))
       share_map = vectors['inputs']['participant_shares'].map do |p|
         id = p['identifier']
         # Calculate participant share.
@@ -47,7 +48,7 @@ RSpec.describe FROST do
       # Round 2: each participant generates their signature share
       round_two_outputs = vectors['round_two_outputs']
 
-      binding_factors = FROST.compute_binding_factors(group_pubkey, commitment_list, msg)
+      binding_factors = FROST.compute_binding_factors(ctx, group_pubkey, commitment_list, msg)
       round_one_outputs['outputs'].each do |o|
         expect(binding_factors[o['identifier']]).to eq(o['binding_factor'].hex)
       end
@@ -55,18 +56,22 @@ RSpec.describe FROST do
       sig_shares = round_two_outputs['outputs'].map do |o|
         identifier = o['identifier']
         signing_share = share_map[identifier]
-        sig_share = FROST.sign(signing_share, group_pubkey, nonce_map[identifier], msg, commitment_list)
+        sig_share = FROST.sign(ctx, signing_share, group_pubkey, nonce_map[identifier], msg, commitment_list)
         expect(sig_share).to eq(o['sig_share'].hex)
         expect(FROST.verify_share(
+          ctx,
           identifier,
           signing_share.to_point,
           sig_share,
-          commitment_list, group_pubkey, msg)).to be true
+          commitment_list,
+          group_pubkey,
+          msg
+        )).to be true
         sig_share
       end
 
       # Aggregation
-      sig = FROST.aggregate(commitment_list, msg, group_pubkey, sig_shares)
+      sig = FROST.aggregate(ctx, commitment_list, msg, group_pubkey, sig_shares)
       expect(sig.to_hex).to eq(vectors['final_output']['sig'])
 
       expect(FROST.verify(sig, group_pubkey, msg)).to be true
@@ -75,40 +80,42 @@ RSpec.describe FROST do
 
   shared_examples "frost process" do
     it do
-      # Dealer generate secret.
-      secret = FROST::SigningKey.generate(group)
-      group_pubkey = secret.to_point
-      # Generate polynomial
-      polynomial = secret.gen_poly(1)
-      # Calculate secret shares.
-      share1 = polynomial.gen_share(1)
-      share2 = polynomial.gen_share(2)
-      share3 = polynomial.gen_share(3)
+      50.times do
+        # Dealer generate secret.
+        secret = FROST::SigningKey.generate(ctx)
+        group_pubkey = secret.to_point
+        # Generate polynomial
+        polynomial = secret.gen_poly(1)
+        # Calculate secret shares.
+        share1 = polynomial.gen_share(1)
+        share2 = polynomial.gen_share(2)
+        share3 = polynomial.gen_share(3)
 
-      # Round 1: Generate nonce and commitment
-      ## each party generate hiding and binding nonce.
-      hiding_nonce1 = FROST::Nonce.gen_from_secret(share1)
-      binding_nonce1 = FROST::Nonce.gen_from_secret(share1)
-      hiding_nonce3 = FROST::Nonce.gen_from_secret(share3)
-      binding_nonce3 = FROST::Nonce.gen_from_secret(share3)
+        # Round 1: Generate nonce and commitment
+        ## each party generate hiding and binding nonce.
+        hiding_nonce1 = FROST::Nonce.gen_from_secret(share1)
+        binding_nonce1 = FROST::Nonce.gen_from_secret(share1)
+        hiding_nonce3 = FROST::Nonce.gen_from_secret(share3)
+        binding_nonce3 = FROST::Nonce.gen_from_secret(share3)
 
-      comm1 = FROST::Commitments.new(1, hiding_nonce1.to_point, binding_nonce1.to_point)
-      comm3 = FROST::Commitments.new(3, hiding_nonce3.to_point, binding_nonce3.to_point)
-      commitment_list = [comm1, comm3]
+        comm1 = FROST::Commitments.new(1, hiding_nonce1.to_point, binding_nonce1.to_point)
+        comm3 = FROST::Commitments.new(3, hiding_nonce3.to_point, binding_nonce3.to_point)
+        commitment_list = [comm1, comm3]
 
-      msg = ["74657374"].pack("H*")
+        msg = ["74657374"].pack("H*")
 
-      # Round 2: each participant generates their signature share(1 and 3)
-      sig_share1 = FROST.sign(share1, group_pubkey, [hiding_nonce1, binding_nonce1], msg, commitment_list)
-      sig_share3 = FROST.sign(share3, group_pubkey, [hiding_nonce3, binding_nonce3], msg, commitment_list)
+        # Round 2: each participant generates their signature share(1 and 3)
+        sig_share1 = FROST.sign(ctx, share1, group_pubkey, [hiding_nonce1, binding_nonce1], msg, commitment_list)
+        sig_share3 = FROST.sign(ctx, share3, group_pubkey, [hiding_nonce3, binding_nonce3], msg, commitment_list)
 
-      expect(FROST.verify_share(1, share1.to_point, sig_share1, commitment_list, group_pubkey, msg)).to be true
-      expect(FROST.verify_share(3, share3.to_point, sig_share3, commitment_list, group_pubkey, msg)).to be true
+        expect(FROST.verify_share(ctx, 1, share1.to_point, sig_share1, commitment_list, group_pubkey, msg)).to be true
+        expect(FROST.verify_share(ctx, 3, share3.to_point, sig_share3, commitment_list, group_pubkey, msg)).to be true
 
-      # Aggregation
-      sig = FROST.aggregate(commitment_list, msg, group_pubkey, [sig_share1, sig_share3])
+        # Aggregation
+        sig = FROST.aggregate(ctx, commitment_list, msg, group_pubkey, [sig_share1, sig_share3])
 
-      expect(FROST.verify(sig, group_pubkey, msg)).to be true
+        expect(FROST.verify(sig, group_pubkey, msg)).to be true
+      end
     end
   end
 
@@ -122,6 +129,19 @@ RSpec.describe FROST do
     context "secp256k1 big identifiers" do
       let(:vectors) { load_fixture("secp256k1/vectors-big-identifier.json") }
       it_behaves_like "Test Vector", "secp256k1 with big identifier"
+    end
+
+    context "secp256k1-tr" do
+      let(:vectors) { load_fixture("secp256k1-tr/vectors.json") }
+      let(:ctx) { FROST::Context.new(group, FROST::Type::TAPROOT) }
+      it_behaves_like "Test Vector", "secp256k1-tr"
+      it_behaves_like "frost process", "secp256k1-tr"
+    end
+
+    context "secp256k1-tr big identifiers" do
+      let(:vectors) { load_fixture("secp256k1-tr/vectors-big-identifier.json") }
+      let(:ctx) { FROST::Context.new(group, FROST::Type::TAPROOT) }
+      it_behaves_like "Test Vector", "secp256k1-tr with big identifier"
     end
 
     context "p256" do
@@ -141,14 +161,14 @@ RSpec.describe FROST do
   describe "#aggregate" do
     context "with long commitment list" do
       it do
-        secret = FROST::SigningKey.generate(group)
+        secret = FROST::SigningKey.generate(ctx)
         group_pubkey = secret.to_point
         comm1 = FROST::Commitments.new(1, group_pubkey, group_pubkey) # fake commitments
         comm2 = FROST::Commitments.new(2, group_pubkey, group_pubkey) # fake commitments
         comm3 = FROST::Commitments.new(3, group_pubkey, group_pubkey) # fake commitments
         msg = ""
         sig_shares = [1, 2]
-        expect{ described_class.aggregate([comm1, comm2, comm3], msg, group_pubkey, sig_shares) }.
+        expect{ described_class.aggregate(ctx, [comm1, comm2, comm3], msg, group_pubkey, sig_shares) }.
           to raise_error("The numbers of commitment_list and sig_shares do not match.")
       end
     end

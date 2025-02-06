@@ -2,15 +2,23 @@ module FROST
   class Nonce
 
     attr_reader :value # nonce value
-    attr_reader :group # Group of elliptic curve
+    attr_reader :context # Group of elliptic curve
 
     # Generate nonce.
+    # @param [FROST::Context] context
+    # @param [Integer] nonce
     # @return [FROST::Nonce]
-    def initialize(nonce, group)
-      raise ArgumentError, "group must by ECDSA::Group." unless group.is_a?(ECDSA::Group)
-      raise ArgumentError, "nonce must by Integer." unless nonce.is_a?(Integer)
+    def initialize(context, nonce)
+      raise ArgumentError, "context must be FROST::Context." unless context.is_a?(FROST::Context)
+      raise ArgumentError, "nonce must be Integer." unless nonce.is_a?(Integer)
       @value = nonce
-      @group = group
+      @context = context
+    end
+
+    # Get group
+    # @return [ECDSA::Group]
+    def group
+      context.group
     end
 
     # Generate nonce from secret share.
@@ -32,8 +40,8 @@ module FROST
 
       secret_bytes = ECDSA::Format::IntegerOctetString.encode(secret.scalar, 32)
       msg = random_bytes + secret_bytes
-      nonce = FROST::Hash.h3(msg, secret.group)
-      Nonce.new(nonce, secret.group)
+      k = FROST::Hash.h3(msg, secret.context)
+      Nonce.new(secret.context, k)
     end
 
     private_class_method :gen_from_random_bytes
@@ -48,6 +56,12 @@ module FROST
     # @return [ECDSA::Point]
     def to_point
       group.generator * value
+    end
+
+    # Generate negated nonce.
+    # @return [FROST::Nonce] Negated nonce.
+    def to_negate
+      Nonce.new(context, group.order - value)
     end
 
   end

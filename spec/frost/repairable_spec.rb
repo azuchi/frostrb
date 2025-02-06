@@ -3,9 +3,10 @@ require 'spec_helper'
 RSpec.describe FROST::Repairable do
 
   let(:group) { ECDSA::Group::Secp256k1 }
+  let(:ctx) { FROST::Context.new(group, FROST::Type::RFC9591) }
   let(:max_signers) { 5 }
   let(:min_signers) { 3 }
-  let(:dealer) { FROST::SigningKey.generate(group) }
+  let(:dealer) { FROST::SigningKey.generate(ctx) }
 
   shared_examples "Reparable Test" do
     it do
@@ -35,10 +36,10 @@ RSpec.describe FROST::Repairable do
       # Each helper send sum value to participant.
       participant_received_values = []
       received_values.each do |_, values|
-        participant_received_values << FROST::Repairable.step2(values, group)
+        participant_received_values << FROST::Repairable.step2(ctx, values)
       end
 
-      repair_share = FROST::Repairable.step3(2, participant_received_values, group)
+      repair_share = FROST::Repairable.step3(ctx, 2, participant_received_values)
       expect(repair_share.share).to eq(participant_share.share)
     end
   end
@@ -80,7 +81,7 @@ RSpec.describe FROST::Repairable do
       value1 = values['random_scalar_1']
       value2 = values['random_scalar_2']
       value3 = values['random_scalar_3']
-      expected = described_class.step2([value1, value2, value3].map(&:hex), group)
+      expected = described_class.step2(ctx, [value1, value2, value3].map(&:hex))
       expect(expected).to eq(values['random_scalar_sum'].hex)
     end
   end
@@ -105,7 +106,7 @@ RSpec.describe FROST::Repairable do
       sigma3 = sigmas['sigma_3']
       sigma4 = sigmas['sigma_4']
 
-      expected = described_class.step3(2, [sigma1, sigma2, sigma3, sigma4].map(&:hex), group)
+      expected = described_class.step3(ctx, 2, [sigma1, sigma2, sigma3, sigma4].map(&:hex))
       expect(expected.share).to eq(sigmas['sigma_sum'].hex)
       expect(expected.identifier).to eq(2)
     end
