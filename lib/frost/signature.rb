@@ -47,13 +47,11 @@ module FROST
       raise ArgumentError, "hex value must be String" unless hex_value.is_a?(String)
 
       data = [hex_value].pack("H*")
-      r_value = if context.taproot?
-                  ['02'].pack('C') + data[0...32]
-                else
-                  data[0...(context.group.byte_length + 1)]
-                end
-      r = ECDSA::Format::PointOctetString.decode(r_value, context.group)
-      s = ECDSA::Format::IntegerOctetString.decode(data[r_value.bytesize..-1])
+      data = [0x02].pack('C') + data if context.taproot?
+      len = context.group.byte_length + 1
+
+      r = ECDSA::Format::PointOctetString.decode(data[0...len], context.group)
+      s = ECDSA::Format::IntegerOctetString.decode(data[len..-1])
       Signature.new(context, r, s)
     end
   end
