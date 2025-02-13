@@ -6,13 +6,18 @@ module FROST
     attr_reader :context
 
     # Generate polynomial.
+    # @param [FROST::Context] context
     # @param [Array] coefficients Coefficients of polynomial.
     # The first is the constant term, followed by the coefficients in descending order of order.
-    # @param [FROST::Context] context
+    # @raise [ArgumentError]
+    #
     def initialize(context, coefficients)
       raise ArgumentError "context must be FROST::Context." unless context.is_a?(FROST::Context)
       raise ArgumentError, "coefficients must be an Array." unless coefficients.is_a?(Array)
       raise ArgumentError, "Two or more coefficients are required." if coefficients.length < 2
+      coefficients.each do |coefficient|
+        raise ArgumentError "coefficient must be Integer." unless coefficient.is_a?(Integer)
+      end
 
       @coefficients = coefficients
       @context = context
