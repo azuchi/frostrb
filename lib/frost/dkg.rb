@@ -61,30 +61,64 @@ module FROST
       received_package.proof.r == verification_key.group.generator * received_package.proof.s + (verification_key * challenge).negate
     end
 
-    # Compute signing share using received shares from other participants
+    # Compute signing share using received shares from other participants.
+    #
     # @param [FROST::DKG::SecretPackage] secret_package Own secret received_package.
+    # @param [Array] received_packages Array of FROST::DKG::Package received by other participants.
     # @param [Array] received_shares Array of FROST::SecretShare received by other participants.
     # @return [FROST::SecretShare] Signing share.
-    def compute_signing_share(secret_package, received_shares)
+    # @raise [ArgumentError]
+    def compute_signing_share(secret_package, received_packages, received_shares)
       raise ArgumentError, "polynomial must be FROST::DKG::SecretPackage." unless secret_package.is_a?(FROST::DKG::SecretPackage)
       raise FROST::Error, "Invalid number of received_shares." unless secret_package.max_signers - 1 == received_shares.length
+      raise ArgumentError, "The number of received_packages and received_shares does not match." unless received_packages.length == received_shares.length
 
       identifier = received_shares.first.identifier
-      s_id = received_shares.sum {|share| share.share}
+      signing_share = received_shares.sum {|share| share.share}
       field = ECDSA::PrimeField.new(secret_package.group.order)
-      FROST::SecretShare.new(
-        secret_package.context, identifier, field.mod(s_id + secret_package.gen_share(identifier).share))
+      signing_share = field.mod(signing_share + secret_package.gen_share(identifier).share)
+      ctx = secret_package.polynomial.context
+      if ctx.taproot?
+        # Post-process the DKG output. Add an unusable taproot tweak to the group key computed by a DKG run,
+        # to prevent peers from inserting rogue tapscript tweaks into the group's joint public key.
+        # From BIP-341:
+        # > If the spending conditions do not require a script path, the output key should commit to
+        # > an unspendable script path instead of having no script path.
+        # > This can be achieved by computing the output key  point as Q = P + int(hashTapTweak(bytes(P)))G.
+        verification_key = compute_group_pubkey(secret_package, received_packages, apply_even: false)
+        has_even = verification_key.y.even?
+        unless has_even
+          verification_key = verification_key.negate
+          signing_share = field.mod(-signing_share)
+        end
+        signing_share = field.mod(signing_share + tap_tweak(verification_key))
+      end
+      FROST::SecretShare.new(secret_package.context, identifier, signing_share)
     end
 
     # Compute Group public key.
     # @param [FROST::DKG::SecretPackage] secret_package Own secret received_package.
     # @param [Array] received_packages Array of FROST::DKG::Package received by other participants.
+    # @param [Boolean] apply_even In taproot context, whether tweak to public key or not.
     # @return [ECDSA::Point] Group public key.
-    def compute_group_pubkey(secret_package, received_packages)
+    def compute_group_pubkey(secret_package, received_packages, apply_even: true)
       raise ArgumentError, "polynomial must be FROST::DKG::SecretPackage." unless secret_package.is_a?(FROST::DKG::SecretPackage)
       raise FROST::Error, "Invalid number of received_packages." unless secret_package.max_signers - 1 == received_packages.length
 
-      received_packages.inject(secret_package.verification_point) {|sum, package| sum + package.commitments.first }
+      verification_key = received_packages.inject(secret_package.verification_point) {|sum, package| sum + package.commitments.first }
+      if secret_package.polynomial.context.taproot? && apply_even
+        verification_key = verification_key.negate unless verification_key.y.even?
+        verification_key + (verification_key.group.generator * tap_tweak(verification_key))
+      else
+        verification_key
+      end
     end
+
+    def tap_tweak(point)
+      x_only = ECDSA::Format::IntegerOctetString.encode(point.x, 32)
+      FROST::Hash.tagged_hash('TapTweak', x_only)
+    end
+
+    private_class_method :tap_tweak
   end
 end

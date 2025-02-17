@@ -80,7 +80,8 @@ RSpec.describe FROST::DKG do
       secret_shares = {}
       participants.each do |participant|
         identifier = participant['identifier']
-        share = described_class.compute_signing_share(secret_packages[identifier], received_shares[identifier].map{|_, share| share})
+        share = described_class.compute_signing_share(
+          secret_packages[identifier], received_packages[identifier], received_shares[identifier].map{|_, share| share})
         secret_shares[identifier] = share
         expect(share.share).to eq(participant['signing_share'].hex)
         expect(share.to_point.to_hex).to eq(participant['verifying_share'])
@@ -96,6 +97,12 @@ RSpec.describe FROST::DKG do
     context "secp256k1" do
       let(:vectors) { load_fixture("secp256k1/vectors_dkg.json") }
       it_behaves_like "DKG Test Vector", "secp256k1"
+    end
+
+    context "secp256k1-tr" do
+      let(:vectors) { load_fixture("secp256k1-tr/vectors_dkg.json") }
+      let(:ctx) { FROST::Context.new(group, FROST::Type::TAPROOT) }
+      it_behaves_like "DKG Test Vector", "secp256k1-tr"
     end
 
     context "P256" do
@@ -158,7 +165,7 @@ RSpec.describe FROST::DKG do
       signing_shares = {}
       1.upto(max_signer) do |i|
         shares = received_shares[i].map{|_, share| share}
-        signing_shares[i] = FROST::DKG.compute_signing_share(secret_packages[i], shares)
+        signing_shares[i] = FROST::DKG.compute_signing_share(secret_packages[i], received_package[i], shares)
       end
 
       # Compute group public key.
