@@ -47,8 +47,18 @@ RSpec.describe FROST::Repairable do
   describe "repair" do
     context "secp256k1" do
       let(:vector) { load_fixture("secp256k1/repair-share.json") }
+      it_behaves_like "Reparable Test", "secp256k1"
     end
-    it_behaves_like "Reparable Test", "secp256k1"
+    context "P256" do
+      let(:group) { ECDSA::Group::Secp256r1 }
+      let(:vectors) { load_fixture("p256/repair-share.json") }
+      it_behaves_like "Reparable Test", "P256"
+    end
+    context "secp256k1-tr" do
+      let(:ctx) { FROST::Context.new(group, FROST::Type::RFC9591) }
+      let(:vectors) { load_fixture("secp256k1-tr/repair-share.json") }
+      it_behaves_like "Reparable Test", "secp256k1-tr"
+    end
   end
 
   describe "step1" do
@@ -96,6 +106,11 @@ RSpec.describe FROST::Repairable do
       let(:vectors) { load_fixture("p256/repair-share.json") }
       it_behaves_like "repair share step2", "P256"
     end
+    context "secp256k1-tr" do
+      let(:ctx) { FROST::Context.new(group, FROST::Type::RFC9591) }
+      let(:vectors) { load_fixture("secp256k1-tr/repair-share.json") }
+      it_behaves_like "repair share step2", "secp256k1-tr"
+    end
   end
 
   shared_examples "repair share step3" do
@@ -121,6 +136,11 @@ RSpec.describe FROST::Repairable do
       let(:group) { ECDSA::Group::Secp256r1 }
       let(:vectors) { load_fixture("p256/repair-share.json") }
       it_behaves_like "repair share step3", "P256"
+    end
+    context "secp256k1-tr" do
+      let(:ctx) { FROST::Context.new(group, FROST::Type::RFC9591) }
+      let(:vectors) { load_fixture("secp256k1-tr/repair-share.json") }
+      it_behaves_like "repair share step3", "secp256k1-tr"
     end
   end
 end
