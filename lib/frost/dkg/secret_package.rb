@@ -27,7 +27,7 @@ module FROST
         @min_signers = min_signers
         @max_signers = max_signers
         @polynomial = polynomial
-        @public_package = Package.new(identifier, polynomial.gen_commitments, polynomial.gen_proof_of_knowledge(identifier))
+        @public_package = PublicPackage.new(identifier, polynomial.gen_commitments, polynomial.gen_proof_of_knowledge(identifier))
       end
 
       # Generate secret share for identifier.

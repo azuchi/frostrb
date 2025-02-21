@@ -3,7 +3,7 @@ module FROST
   module DKG
 
     autoload :SecretPackage, "frost/dkg/secret_package"
-    autoload :Package, "frost/dkg/package"
+    autoload :PublicPackage, "frost/dkg/public_package"
 
     module_function
 
@@ -47,11 +47,11 @@ module FROST
 
     # Verify proof of knowledge for received commitment.
     # @param [FROST::DKG::SecretPackage] secret_package Verifier's secret package.
-    # @param [FROST::DKG::Package] received_package Received received_package.
+    # @param [FROST::DKG::PublicPackage] received_package Received received_package.
     # @return [Boolean]
     def verify_proof_of_knowledge(secret_package, received_package)
       raise ArgumentError, "secret_package must be FROST::DKG::SecretPackage." unless secret_package.is_a?(FROST::DKG::SecretPackage)
-      raise ArgumentError, "received_package must be FROST::DKG::Package." unless received_package.is_a?(FROST::DKG::Package)
+      raise ArgumentError, "received_package must be FROST::DKG::Package." unless received_package.is_a?(FROST::DKG::PublicPackage)
       raise FROST::Error, "Invalid number of commitments in package." unless secret_package.min_signers == received_package.commitments.length
 
       verification_key = received_package.verification_key

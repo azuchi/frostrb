@@ -1,6 +1,6 @@
 module FROST
   module DKG
-    class Package
+    class PublicPackage
       attr_reader :identifier
       attr_reader :commitments
       attr_reader :proof

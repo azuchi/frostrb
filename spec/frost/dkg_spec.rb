@@ -28,7 +28,7 @@ RSpec.describe FROST::DKG do
           expect(commitments[i].to_hex).to eq(commitment)
         end
         proof = FROST::Signature.decode(ctx, p['proof_of_knowledge'])
-        package = FROST::DKG::Package.new(identifier, commitments, proof)
+        package = FROST::DKG::PublicPackage.new(identifier, commitments, proof)
         [1, 2, 3].select{|v| v != identifier }.each do |target|
           received_packages[target] ||= []
           received_packages[target] << package
