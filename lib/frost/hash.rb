@@ -5,9 +5,6 @@ module FROST
 
     module_function
 
-    CTX_STRING_SECP256K1 = "FROST-secp256k1-SHA256-v1"
-    CTX_STRING_P256 = "FROST-P256-SHA256-v1"
-
     # H1 hash function.
     # @param [String] msg The message to be hashed.
     # @param [FROST::Context] context FROST context.
