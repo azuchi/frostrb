@@ -7,7 +7,11 @@ Note: This library has not been security audited and tested widely, so should no
 The cipher suites currently supported by this library are:
 
 * [secp256k1, SHA-256](https://www.ietf.org/archive/id/draft-irtf-cfrg-frost-14.html#name-frostsecp256k1-sha-256)
-* [P-256, SHA-256](https://www.ietf.org/archive/id/draft-irtf-cfrg-frost-14.html#name-frostp-256-sha-256) 
+* [P-256, SHA-256](https://www.ietf.org/archive/id/draft-irtf-cfrg-frost-14.html#name-frostp-256-sha-256)
+* secp256k1, Taproot
+
+Note: The implementation for Taproot is based on [frost-secp256k1-tr](https://github.com/ZcashFoundation/frost/tree/main/frost-secp256k1-tr),
+but since it is not an official BIP, it may change in the future.
 
 ## Installation
 
@@ -30,10 +34,11 @@ Or install it yourself as:
 ```ruby
 require 'frost'
 
-group = ECDSA::Group::Secp256k1
+# Setup context.
+ctx = FROST::Context.new(ECDSA::Group::Secp256k1, FROST::Type::RFC9591)
 
 # Dealer generate secret.
-secret = FROST::SigningKey.generate(group)
+secret = FROST::SigningKey.generate(ctx)
 group_pubkey = secret.to_point
 
 # Generate polynomial(f(x) = ax + b)
@@ -58,18 +63,26 @@ commitment_list = [comm1, comm3]
 msg = ["74657374"].pack("H*")
 
 # Round 2: each participant generates their signature share(1 and 3)
-sig_share1 = FROST.sign(share1, group_pubkey, [hiding_nonce1, binding_nonce1], msg, commitment_list)
-sig_share3 = FROST.sign(share3, group_pubkey, [hiding_nonce3, binding_nonce3], msg, commitment_list)
+sig_share1 = FROST.sign(ctx, share1, group_pubkey, [hiding_nonce1, binding_nonce1], msg, commitment_list)
+sig_share3 = FROST.sign(ctx, share3, group_pubkey, [hiding_nonce3, binding_nonce3], msg, commitment_list)
 
 # verify signature share
 FROST.verify_share(1, share1.to_point, sig_share1, commitment_list, group_pubkey, msg)
 FROST.verify_share(3, share3.to_point, sig_share3, commitment_list, group_pubkey, msg)
 
 # Aggregation
-sig = FROST.aggregate(commitment_list, msg, group_pubkey, [sig_share1, sig_share3])
+sig = FROST.aggregate(ctx, commitment_list, msg, group_pubkey, [sig_share1, sig_share3])
 
 # verify final signature
 FROST.verify(sig, group_pubkey, msg)
+```
+
+### Bitcoin support
+
+When using Bitcoin(taproot), the context type must be `FROST::Type::Taproot` instead of `FROST::Type::RFC9591`.
+
+```ruby
+ctx = FROST::Context.new(ECDSA::Group::Secp256k1, FROST::Type::TAPROOT)
 ```
 
 ### Using DKG
@@ -77,6 +90,9 @@ FROST.verify(sig, group_pubkey, msg)
 DKG can be run as below.
 
 ```ruby
+# Setup context.
+ctx = FROST::Context.new(ECDSA::Group::Secp256k1, FROST::Type::RFC9591)
+
 max_signer = 5
 min_signer = 3
 
@@ -85,15 +101,15 @@ round1_outputs = {}
 # Round 1:
 # For each participant, perform the first part of the DKG protocol.
 1.upto(max_signer) do |i|
-  secret_package = FROST::DKG.generate_secret(i, min_signer, max_signer, group)
+  secret_package = FROST::DKG.generate_secret(ctx, i, min_signer, max_signer)
   secret_packages[i] = secret_package
   round1_outputs[i] = secret_package.public_package
 end
 
-# Each participant sends their commitments and proof to other participants.
+# Each participant send their commitments and proof to other participants.
 received_package = {}
 1.upto(max_signer) do |i|
-  received_package[i] = round1_outputs.select { |k, _| k != i }.values
+  received_package[i] = round1_outputs.select {|k, _| k != i}.values
 end
 
 # Each participant verify knowledge of proof in received package.
@@ -119,16 +135,16 @@ end
 # Each participant verify received shares.
 1.upto(max_signer) do |i|
   received_shares[i].each do |send_by, share|
-    target_package = received_package[i].find { |package| package.identifier == send_by }
+    target_package = received_package[i].find{ |package| package.identifier == send_by }
     expect(target_package.verify_share(share)).to be true
   end
 end
 
-# Each participant compute signing share.
+# Each participant computes signing share.
 signing_shares = {}
 1.upto(max_signer) do |i|
-  shares = received_shares[i].map { |_, share| share }
-  signing_shares[i] = FROST::DKG.compute_signing_share(secret_packages[i], shares)
+  shares = received_shares[i].map{|_, share| share}
+  signing_shares[i] = FROST::DKG.compute_signing_share(secret_packages[i], received_package[i], shares)
 end
 
 # Participant 1 compute group public key.
@@ -142,8 +158,10 @@ group_pubkey = FROST::DKG.compute_group_pubkey(secret_packages[1], received_pack
 Using `FROST::Repairable` module, you can repair existing (or new) participant's share with the cooperation of T participants.
 
 ```ruby
+ctx = FROST::Context.new(ECDSA::Group::Secp256k1, FROST::Type::RFC9591)
+dealer = FROST::SigningKey.generate(ctx)
+
 # Dealer generate shares.
-FROST::SigningKey.generate(ECDSA::Group::Secp256k1)
 polynomial = dealer.gen_poly(min_signers - 1)
 shares = 1.upto(max_signers).map {|identifier| polynomial.gen_share(identifier) }
 
@@ -169,9 +187,9 @@ end
 # Each helper send sum value to participant.
 participant_received_values = []
 received_values.each do |_, values|
-  participant_received_values << FROST::Repairable.step2(values, ECDSA::Group::Secp256k1)
+  participant_received_values << FROST::Repairable.step2(ctx, values)
 end
 
-# Participant can obtain his share.
-repair_share = FROST::Repairable.step3(2, participant_received_values, ECDSA::Group::Secp256k1)
+# Participant can get his share.
+repair_share = FROST::Repairable.step3(ctx, 2, participant_received_values)
 ```
