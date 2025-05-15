@@ -79,7 +79,7 @@ FROST.verify(sig, group_pubkey, msg)
 
 ### Bitcoin support
 
-When using Bitcoin(taproot), the context type must be `FROST::Type::Taproot` instead of `FROST::Type::RFC9591`.
+When using Bitcoin(taproot), the context type must be `FROST::Type::TAPROOT` instead of `FROST::Type::RFC9591`.
 
 ```ruby
 ctx = FROST::Context.new(ECDSA::Group::Secp256k1, FROST::Type::TAPROOT)
