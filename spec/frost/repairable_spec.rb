@@ -55,7 +55,7 @@ RSpec.describe FROST::Repairable do
       it_behaves_like "Reparable Test", "P256"
     end
     context "secp256k1-tr" do
-      let(:ctx) { FROST::Context.new(group, FROST::Type::RFC9591) }
+      let(:ctx) { FROST::Context.new(group, FROST::Type::TAPROOT) }
       let(:vectors) { load_fixture("secp256k1-tr/repair-share.json") }
       it_behaves_like "Reparable Test", "secp256k1-tr"
     end
