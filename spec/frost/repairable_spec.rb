@@ -63,8 +63,7 @@ RSpec.describe FROST::Repairable do
   describe "step1" do
     it do
       # Dealer generate shares.
-      polynomial = dealer.gen_poly(min_signers - 1)
-      shares = 1.upto(max_signers).map {|identifier| polynomial.gen_share(identifier) }
+      shares = dealer.gen_shares
       helper1 = shares[0]
       helper4 = shares[3]
       helper5 = shares[4]
