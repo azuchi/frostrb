@@ -6,13 +6,12 @@ RSpec.describe FROST::Repairable do
   let(:ctx) { FROST::Context.new(group, FROST::Type::RFC9591) }
   let(:max_signers) { 5 }
   let(:min_signers) { 3 }
-  let(:dealer) { FROST::SigningKey.generate(ctx) }
+  let(:dealer) { FROST::Dealer.new(ctx, max_signers, min_signers) }
 
   shared_examples "Reparable Test" do
     it do
       # Dealer generate shares.
-      polynomial = dealer.gen_poly(min_signers - 1)
-      shares = 1.upto(max_signers).map {|identifier| polynomial.gen_share(identifier) }
+      shares = dealer.gen_shares
 
       # Signer 2 will lose their share
       # Signers (helpers) 1, 4 and 5 will help signer 2 (participant) to recover their share

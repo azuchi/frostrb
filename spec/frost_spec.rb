@@ -82,17 +82,13 @@ RSpec.describe FROST do
     it do
       50.times do
         # Dealer generate secret.
-        secret = FROST::SigningKey.generate(ctx)
-        group_pubkey = secret.to_point
-        # Generate polynomial
-        polynomial = secret.gen_poly(1)
+        dealer = FROST::Dealer.new(ctx, 3, 2)
+        group_pubkey = dealer.group_public_key
         # Calculate secret shares.
-        share1 = polynomial.gen_share(1)
-        share2 = polynomial.gen_share(2)
-        share3 = polynomial.gen_share(3)
+        share1, _, share3 = dealer.gen_shares
 
         # Round 1: Generate nonce and commitment
-        ## each party generate hiding and binding nonce.
+        ## each party generates hiding and binding nonce.
         hiding_nonce1 = FROST::Nonce.gen_from_secret(share1)
         binding_nonce1 = FROST::Nonce.gen_from_secret(share1)
         hiding_nonce3 = FROST::Nonce.gen_from_secret(share3)
