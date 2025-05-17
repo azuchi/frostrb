@@ -1,6 +1,6 @@
 # FROST for Ruby [![Build Status](https://github.com/azuchi/frostrb/actions/workflows/main.yml/badge.svg?branch=master)](https://github.com/azuchi/frostrb/actions/workflows/main.yml)
 
-This library is ruby implementations of ['Two-Round Threshold Schnorr Signatures with FROST'](https://datatracker.ietf.org/doc/draft-irtf-cfrg-frost/).
+This library is a ruby implementation of ['Two-Round Threshold Schnorr Signatures with FROST'](https://datatracker.ietf.org/doc/draft-irtf-cfrg-frost/).
 
 Note: This library has not been security audited and tested widely, so should not be used in production.
 
@@ -37,20 +37,18 @@ require 'frost'
 # Setup context.
 ctx = FROST::Context.new(ECDSA::Group::Secp256k1, FROST::Type::RFC9591)
 
-# Dealer generate secret.
-secret = FROST::SigningKey.generate(ctx)
-group_pubkey = secret.to_point
+max_signers = 3
+min_signers = 2
 
-# Generate polynomial(f(x) = ax + b)
-polynomial = secret.gen_poly(1)
+# Setup dealer.
+dealer = FROST::Dealer.new(ctx, max_signers, min_signers)
+group_pubkey = dealer.group_public_key
 
 # Calculate secret shares.
-share1 = polynomial.gen_share(1)
-share2 = polynomial.gen_share(2)
-share3 = polynomial.gen_share(3)
+share1, _, share3 = dealer.gen_shares
 
 # Round 1: Generate nonce and commitment
-## each party generate hiding and binding nonce.
+## each party generates hiding and binding nonce.
 hiding_nonce1 = FROST::Nonce.gen_from_secret(share1)
 binding_nonce1 = FROST::Nonce.gen_from_secret(share1)
 hiding_nonce3 = FROST::Nonce.gen_from_secret(share3)
@@ -106,13 +104,13 @@ round1_outputs = {}
   round1_outputs[i] = secret_package.public_package
 end
 
-# Each participant send their commitments and proof to other participants.
+# Each participant sends their commitments and proof to other participants.
 received_package = {}
 1.upto(max_signer) do |i|
   received_package[i] = round1_outputs.select {|k, _| k != i}.values
 end
 
-# Each participant verify knowledge of proof in received package.
+# Each participant verifies knowledge of proof in a received package.
 received_package.each do |id, packages|
   secret_package = secret_packages[id]
   packages.each do |package|
@@ -121,7 +119,7 @@ received_package.each do |id, packages|
 end
 
 # Round 2:
-# Each participant generate share for other participants and send it.
+# Each participant generates a share for other participants and send it.
 received_shares = {}
 1.upto(max_signer) do |i|
   secret_package = secret_packages[i] # own secret
@@ -140,7 +138,7 @@ end
   end
 end
 
-# Each participant computes signing share.
+# Each participant computes a signing share.
 signing_shares = {}
 1.upto(max_signer) do |i|
   shares = received_shares[i].map{|_, share| share}
@@ -159,11 +157,14 @@ Using `FROST::Repairable` module, you can repair existing (or new) participant's
 
 ```ruby
 ctx = FROST::Context.new(ECDSA::Group::Secp256k1, FROST::Type::RFC9591)
-dealer = FROST::SigningKey.generate(ctx)
+max_signers = 5
+min_signers = 3
 
-# Dealer generate shares.
-polynomial = dealer.gen_poly(min_signers - 1)
-shares = 1.upto(max_signers).map {|identifier| polynomial.gen_share(identifier) }
+# Setup daler
+dealer = FROST::SigningKey.generate(ctx, max_signers, min_signers)
+
+# Dealer generates shares.
+shares = dealer.gen_shares
 
 # Signer 2 will lose their share
 # Signers (helpers) 1, 4 and 5 will help signer 2 (participant) to recover their share
