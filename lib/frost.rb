@@ -18,6 +18,7 @@ module FROST
   autoload :Polynomial, "frost/polynomial"
   autoload :SigningKey, "frost/signing_key"
   autoload :Dealer, "frost/dealer"
+  autoload :Refresh, "frost/refresh"
   autoload :DKG, "frost/dkg"
   autoload :Repairable, "frost/repairable"
 

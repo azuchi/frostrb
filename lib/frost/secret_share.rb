@@ -43,5 +43,17 @@ module FROST
       key = to_key
       [ FROST::Nonce.gen_from_secret(key), FROST::Nonce.gen_from_secret(key) ]
     end
+
+    # Add +other+ secret share.
+    # @param [FROST:SecretShare] other
+    # @raise [ArgumentError]
+    # @return [FROST::SecretShare]
+    def add(other)
+      raise ArgumentError, "other must be FROST::SecretShare." unless other.is_a?(FROST::SecretShare)
+      raise ArgumentError, "identifier mismatch." unless other.identifier == identifier
+      field = ECDSA::PrimeField.new(context.group.order)
+      FROST::SecretShare.new(context, identifier, field.mod(share + other.share))
+    end
+    alias + add
   end
 end

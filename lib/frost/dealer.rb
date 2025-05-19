@@ -9,9 +9,11 @@ module FROST
     # Create a new dealer.
     # @param [FROST::Context] ctx FROST context.
     # @param [Integer] max_signers Maximum number of signers.
+    # @param [Integer] min_signers Minimum number of signers.
+    # @param [Boolean] zero_key If true, generate a refreshing share (i.e. a key with a zero value).
     # @return [FROST::Dealer]
     # @raise [ArgumentError]
-    def initialize(ctx, max_signers, min_signers)
+    def initialize(ctx, max_signers, min_signers, zero_key: false)
       raise ArgumentError, "context must be FROST::Context." unless ctx.is_a?(FROST::Context)
       raise ArgumentError, "min_signers must be Integer." unless min_signers.is_a?(Integer)
       raise ArgumentError, "min_signers must be greater than 1." if min_signers < 2
@@ -20,7 +22,7 @@ module FROST
       @ctx = ctx
       @min_signers = min_signers
       @max_signers = max_signers
-      key = SigningKey.generate(ctx)
+      key = zero_key ? SigningKey.new(ctx, 0, allow_zero_key: true) : SigningKey.generate(ctx)
       @polynomial = key.gen_poly(min_signers - 1)
     end
 

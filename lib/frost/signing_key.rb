@@ -7,10 +7,12 @@ module FROST
     # Constructor
     # @param [FROST::Context] context Frost context.
     # @param [Integer] scalar secret key value.
-    def initialize(context, scalar)
+    # @param [Boolean] allow_zero_key Allow zero scalar.
+    # @raise [ArgumentError]
+    def initialize(context, scalar, allow_zero_key: false)
       raise ArgumentError "context must be FROST::Context." unless context.is_a?(FROST::Context)
       raise ArgumentError, "scalar must be integer." unless scalar.is_a?(Integer)
-      raise ArgumentError, "Invalid scalar range." if scalar < 1 || context.group.order - 1 < scalar
+      raise ArgumentError, "Invalid scalar range." if !allow_zero_key && scalar < 1 || context.group.order - 1 < scalar
 
       @scalar = scalar
       @context = context
