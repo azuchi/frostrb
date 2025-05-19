@@ -89,10 +89,8 @@ RSpec.describe FROST do
 
         # Round 1: Generate nonce and commitment
         ## each party generates hiding and binding nonce.
-        hiding_nonce1 = FROST::Nonce.gen_from_secret(share1)
-        binding_nonce1 = FROST::Nonce.gen_from_secret(share1)
-        hiding_nonce3 = FROST::Nonce.gen_from_secret(share3)
-        binding_nonce3 = FROST::Nonce.gen_from_secret(share3)
+        hiding_nonce1, binding_nonce1 = share1.generate_nonces
+        hiding_nonce3, binding_nonce3 = share3.generate_nonces
 
         comm1 = FROST::Commitments.new(1, hiding_nonce1.to_point, binding_nonce1.to_point)
         comm3 = FROST::Commitments.new(3, hiding_nonce3.to_point, binding_nonce3.to_point)

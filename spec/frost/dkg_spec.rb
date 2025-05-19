@@ -184,12 +184,9 @@ RSpec.describe FROST::DKG do
       share1 = signing_shares[1]
       share2 = signing_shares[2]
       share4 = signing_shares[4]
-      hiding_nonce1 = FROST::Nonce.gen_from_secret(share1)
-      binding_nonce1 = FROST::Nonce.gen_from_secret(share1)
-      hiding_nonce2 = FROST::Nonce.gen_from_secret(share2)
-      binding_nonce2 = FROST::Nonce.gen_from_secret(share2)
-      hiding_nonce4 = FROST::Nonce.gen_from_secret(share4)
-      binding_nonce4 = FROST::Nonce.gen_from_secret(share4)
+      hiding_nonce1, binding_nonce1 = share1.generate_nonces
+      hiding_nonce2, binding_nonce2 = share2.generate_nonces
+      hiding_nonce4, binding_nonce4 = share4.generate_nonces
 
       comm1 = FROST::Commitments.new(share1.identifier, hiding_nonce1.to_point, binding_nonce1.to_point)
       comm2 = FROST::Commitments.new(share2.identifier, hiding_nonce2.to_point, binding_nonce2.to_point)

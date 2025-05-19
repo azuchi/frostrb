@@ -19,7 +19,7 @@ module FROST
       @context = context
     end
 
-    # Get group
+    # Get the group
     # @return [ECDSA::Group]
     def group
       context.group
@@ -31,10 +31,17 @@ module FROST
       group.generator * share
     end
 
-    # Generate signing share key.
+    # Generate a signing share key.
     # @return [FROST::SigningKey]
     def to_key
       FROST::SigningKey.new(context, share)
+    end
+
+    # Generate hiding and binding nance.
+    # @return [Array] An array of hiding nonce and binding nonce.
+    def generate_nonces
+      key = to_key
+      [ FROST::Nonce.gen_from_secret(key), FROST::Nonce.gen_from_secret(key) ]
     end
   end
 end
